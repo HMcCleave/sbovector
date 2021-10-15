@@ -1,3 +1,19 @@
+# local/build files
+bin/
+build/
+
+# editor files
+.vs/
+.cproject
+.project
+.vscode/
+.DS_STORE
+.swp
+/CMakeSettings.json
+
+# Python
+.py[cod]
+
 # Prerequisites
 *.d
 
