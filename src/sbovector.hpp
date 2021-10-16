@@ -5,17 +5,37 @@
 #include <memory>
 #include <initializer_list>
 
+namespace details_ {
+
+template<typename A, typename B>
+struct CompactPair final : private A {
+  B b_;
+  A& first() { return *this; }
+  const A& first() const { return *this; }
+  B& second() { return b_; }
+  const B& second() const { return b_; }
+};
+
+} // namespace details_
+
 template<typename DataType, size_t BufferSize, class Allocator = std::allocator<DataType>>
 class SBOVector {
  private:
-  size_t count_;
-  union {
-    std::array<DataType, BufferSize> inline_;
-    struct {
-      std::unique_ptr<DataType, Allocator> data_;
-      size_t capacity_;
-    } allocated_;
+
+  struct VectorImpl {
+    size_t count_;
+    union {
+      std::array<DataType, BufferSize> inline_;
+      struct {
+        std::unique_ptr<DataType[], Allocator> data_;
+        size_t capacity_;
+      } external_;
+    };
+    VectorImpl() {}
+    ~VectorImpl() {}
   };
+
+  details_::CompactPair<Allocator, VectorImpl> data_;
 
   struct Iterator {
 

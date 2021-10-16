@@ -1,10 +1,12 @@
 #include <gtest/gtest.h>
 
+#include "sbovector.hpp"
+
 constexpr int SMALL_SIZE = 5;
 constexpr int LARGE_SIZE = 100;
 constexpr int SBO_SIZE = 16;
 
-using ContainerType = std::vector<int>; // SBOVector<int, SBO_SIZE>;
+using ContainerType = SBOVector<int, SBO_SIZE>; // SBOVector<int, SBO_SIZE>;
 
 static_assert(SMALL_SIZE < SBO_SIZE);
 static_assert(SBO_SIZE < LARGE_SIZE);
