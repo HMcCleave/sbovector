@@ -53,6 +53,20 @@ TEST(SBOVectorOfInts, MustConstructLargeNumberOfCopies) {
   EXPECT_FALSE(container.empty());
 }
 
+TEST(SBOVectorOfInts, MustNotAllocateOnSmallConstruction) {
+  bool flag = false;
+  struct {
+    bool *flag_ptr = false;
+    int* allocate(...) {
+      *flag_ptr = true;
+      return nullptr;
+    }
+    void deallocate(...) {}
+  } must_not_use{&flag};
+  SBOVector<int, SBO_SIZE, decltype(must_not_use)> container(SMALL_SIZE, 5, must_not_use);
+  EXPECT_FALSE(flag);
+}
+
 TEST(SBOVectorOfInts, MustConstructLargeNumberOfCopiesWithCustomAllocator) {
   int alloc_count = 0;
   CountingAllocator<int> alloc(&alloc_count);
