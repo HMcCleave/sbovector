@@ -4,21 +4,61 @@
 #include <array>
 #include <memory>
 #include <initializer_list>
+#include <type_traits>
 
 namespace details_ {
 
-template<typename A, typename B>
+template<typename T>
+constexpr bool is_compactable() {
+  return (std::is_empty_v<T> && !std::is_final_v<T>);
+}
+
+
+template<typename A, typename B, bool = is_compactable<A>()>
 struct CompactPair final : private A {
   B b_;
+
+  template<typename A_Arg, typename... B_Args>
+  CompactPair(std::true_type, A_Arg&& a_arg, B_Args&&... b_args) 
+    : A(std::forward<A_Arg>(a_arg)),
+      b_(std::forward<B_Args>(b_args),...) {}
+
+  template<typename... B_Args>
+  CompactPair(std::false_type, B_Args&&... b_args)
+    : A(), b_(std::forward<B_Args>(b_args)...) {}
+
+  ~CompactPair() {}
+
+
   A& first() { return *this; }
   const A& first() const { return *this; }
   B& second() { return b_; }
   const B& second() const { return b_; }
 };
 
+template<typename A, typename B>
+struct CompactPair<A, B, false> final {
+  A a_;
+  B b_;
+  template <typename A_Arg, typename... B_Args>
+  CompactPair(std::true_type, A_Arg&& a_arg, B_Args&&... b_args)
+      : a_(std::forward<A_Arg>(a_arg)), b_(std::forward<B_Args>(b_args)...) {}
+
+  template <typename... B_Args>
+  CompactPair(std::false_type, B_Args&&... b_args)
+      : a_(), b_(std::forward<B_Args>(b_args), ...) {}
+
+  ~CompactPair() {}
+
+  A& first() { return a_; }
+  const A& first() const { return a_; }
+  B& second() { return b_; }
+  const B& second() const { return b_; }
+};
+
 } // namespace details_
 
-template<typename DataType, size_t BufferSize, class Allocator = std::allocator<DataType>>
+template<typename DataType, size_t BufferSize, typename Allocator = std::allocator<DataType>>
 class SBOVector {
  private:
 
@@ -54,12 +94,13 @@ class SBOVector {
    using reference = DataType&;
    using const_reference = const reference;
 
-   SBOVector() {}
-   explicit SBOVector(const Allocator&) noexcept {}
+   SBOVector() : data_(std::false_type{}) {}
+   explicit SBOVector(const Allocator& a) noexcept
+       : data_(std::true_type{}, a) {}
    SBOVector(size_t, const DataType&, const Allocator& = Allocator()) {}
    explicit SBOVector(size_t, const Allocator& = Allocator()) {}
 
-   template<class InputIter>
+   template <typename InputIter>
    SBOVector(InputIter, InputIter, const Allocator& = Allocator());
 
    template<int OtherSize>
@@ -144,7 +185,7 @@ class SBOVector {
    iterator insert(const_iterator, std::initializer_list<DataType>) {
      return begin();
    }
-   template<class... Args>
+   template <typename... Args>
    iterator emplace(const_iterator pos, Args&&... args) {
      return begin();
    }
@@ -155,7 +196,7 @@ class SBOVector {
    void push_back(const DataType&) {}
    void push_back(DataType&&) {}
 
-   template<class... Args>
+   template <typename... Args>
    reference emplace_back(Args&&...) { return back(); }
 
    void pop_back() {}
