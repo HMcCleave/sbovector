@@ -21,7 +21,7 @@ struct CompactPair final : private A {
   template<typename A_Arg, typename... B_Args>
   CompactPair(std::true_type, A_Arg&& a_arg, B_Args&&... b_args) 
     : A(std::forward<A_Arg>(a_arg)),
-      b_(std::forward<B_Args>(b_args),...) {}
+      b_(std::forward<B_Args>(b_args)...) {}
 
   template<typename... B_Args>
   CompactPair(std::false_type, B_Args&&... b_args)
@@ -67,12 +67,32 @@ class SBOVector {
     union {
       std::array<DataType, BufferSize> inline_;
       struct {
-        std::unique_ptr<DataType[], Allocator> data_;
+        DataType* data_;
         size_t capacity_;
       } external_;
     };
-    VectorImpl() {}
-    ~VectorImpl() {}
+    VectorImpl() : count_(0), inline_{} {}
+
+    VectorImpl(Allocator& alloc, size_t count, const DataType& value)
+      : count_(count) {
+      DataType* init_ptr = inline_.data();
+      if (count_ > BufferSize) {
+        external_.data_ = alloc.allocate(count);
+        external_.capacity_ = count_;
+        init_ptr = external_.data_;
+      }
+      while (count--) {
+        *init_ptr++ = value;
+      }
+    }
+    ~VectorImpl() { /*Destruction of external_ must be done by SBOVector class to facilitate custom allocator*/ }
+
+    void clear(Allocator& alloc) { 
+      if (count_ > BufferSize) {
+        alloc.deallocate(external_.data_, external_.capacity_);
+      }
+      count_ = 0;
+    }
   };
 
   details_::CompactPair<Allocator, VectorImpl> data_;
@@ -95,9 +115,15 @@ class SBOVector {
    using const_reference = const reference;
 
    SBOVector() : data_(std::false_type{}) {}
+
    explicit SBOVector(const Allocator& a) noexcept
        : data_(std::true_type{}, a) {}
-   SBOVector(size_t, const DataType&, const Allocator& = Allocator()) {}
+
+   SBOVector(size_t count, const DataType& value, const Allocator& alloc = Allocator())
+       : data_(std::true_type{}, alloc) {
+     data_.second() = {data_.first(), count, value};
+   }
+
    explicit SBOVector(size_t, const Allocator& = Allocator()) {}
 
    template <typename InputIter>
@@ -113,7 +139,9 @@ class SBOVector {
 
    SBOVector(std::initializer_list<DataType>, const Allocator& = Allocator()) {}
 
-   ~SBOVector() {}
+   ~SBOVector() {
+     data_.second().clear(data_.first());
+   }
 
    template<int OtherSize>
    SBOVector& operator=(
@@ -166,11 +194,17 @@ class SBOVector {
    const_iterator end() const noexcept { return {}; }
    const_iterator cend() const noexcept { return end(); }
 
-   bool empty() const noexcept { return true; }
-   size_t size() const noexcept { return 0; }
+   bool empty() const noexcept { return 0 == size(); }
+   size_t size() const noexcept { return data_.second().count_; }
    size_t max_size() const noexcept { return 0; }
    void reserve(size_t) {}
-   size_t capacity() const noexcept { return 0; }
+
+   size_t capacity() const noexcept {
+     if (size() <= BufferSize)  // wrt:c++20 [[likely]]
+       return BufferSize;
+     return data_.second().external_.capacity_;
+   }
+
    void shrink_to_fit() {}
 
    void clear() noexcept {}

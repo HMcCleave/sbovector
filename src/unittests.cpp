@@ -2,9 +2,9 @@
 
 #include "sbovector.hpp"
 
-constexpr int SMALL_SIZE = 5;
-constexpr int LARGE_SIZE = 100;
-constexpr int SBO_SIZE = 16;
+constexpr size_t SMALL_SIZE = 5;
+constexpr size_t LARGE_SIZE = 100;
+constexpr size_t SBO_SIZE = 16;
 
 template<typename T>
 struct CountingAllocator {
@@ -37,6 +37,34 @@ TEST(SBOVectorOfInts, MustConstructWithCustomAllocator) {
   EXPECT_EQ(alloc_count, 0);
   EXPECT_EQ(container.size(), 0);
   EXPECT_TRUE(container.empty());
+}
+
+TEST(SBOVectorOfInts, MustConstructSmallNumberOfCopies) {
+  ContainerType container(SMALL_SIZE, 5);
+  EXPECT_EQ(container.size(), SMALL_SIZE);
+  EXPECT_EQ(container.capacity(), SBO_SIZE);
+  EXPECT_FALSE(container.empty());
+}
+
+TEST(SBOVectorOfInts, MustConstructLargeNumberOfCopies) {
+  ContainerType container(LARGE_SIZE, 5);
+  EXPECT_EQ(container.size(), LARGE_SIZE);
+  EXPECT_GE(container.capacity(), LARGE_SIZE);
+  EXPECT_FALSE(container.empty());
+}
+
+TEST(SBOVectorOfInts, MustConstructLargeNumberOfCopiesWithCustomAllocator) {
+  int alloc_count = 0;
+  CountingAllocator<int> alloc(&alloc_count);
+  {
+    SBOVector<int, SBO_SIZE, CountingAllocator<int>> container(LARGE_SIZE, 5,
+                                                               alloc);
+    EXPECT_EQ(container.size(), LARGE_SIZE);
+    EXPECT_GE(container.capacity(), LARGE_SIZE);
+    EXPECT_FALSE(container.empty());
+    EXPECT_NE(alloc_count, 0);
+  }
+  EXPECT_EQ(alloc_count, 0);
 }
 
 static_assert(SMALL_SIZE < SBO_SIZE);
