@@ -65,7 +65,7 @@ struct CompactPair<A, B, false> final {
 
   template <typename... B_Args>
   CompactPair(std::false_type, B_Args&&... b_args)
-      : a_(), b_(std::forward<B_Args>(b_args), ...) {}
+      : a_(), b_(std::forward<B_Args>(b_args)...) {}
 
   ~CompactPair() {}
 
@@ -92,8 +92,9 @@ class SBOVector {
     };
     VectorImpl() : count_(0), inline_{} {}
 
-    VectorImpl(Allocator& alloc, size_t count, const DataType& value)
-      : count_(count) {
+    void clean_assign(Allocator& alloc, size_t count, const DataType& value) {
+      // assumes clean [count_ == 0]
+      count_ = count;
       DataType* init_ptr = inline_.data();
       if (count_ > BufferSize) {
         external_.data_ = alloc.allocate(count);
@@ -116,22 +117,18 @@ class SBOVector {
 
   details_::CompactPair<Allocator, VectorImpl> data_;
 
-  struct Iterator {
-
-  };
-
  public:
    using value_type = DataType;
    using allocator_type = Allocator;
    using size_type = size_t;
    using pointer = DataType*;
-   using const_pointer = const pointer;
-   using iterator = Iterator;
-   using const_iterator = const Iterator;
+   using const_pointer = const DataType*;
+   using iterator = DataType*;
+   using const_iterator = const DataType*;
    using reverse_iterator = std::reverse_iterator<iterator>;
    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
    using reference = DataType&;
-   using const_reference = const reference;
+   using const_reference = const DataType&;
 
    SBOVector() : data_(std::false_type{}) {}
 
@@ -140,7 +137,7 @@ class SBOVector {
 
    SBOVector(size_t count, const DataType& value, const Allocator& alloc = Allocator())
        : data_(std::true_type{}, alloc) {
-     data_.second() = {data_.first(), count, value};
+     data_.second().clean_assign(data_.first(), count, value);
    }
 
    explicit SBOVector(size_t count, const Allocator& alloc = Allocator()) : SBOVector(count, DataType(), alloc) {}
@@ -156,7 +153,11 @@ class SBOVector {
        data_ptr = impl.external_.data_ = ralloc.allocate(count);
        impl.external_.capacity_ = count;
      }
-     std::copy(begin, end, data_ptr);
+     if constexpr (!std::is_trivial_v<DataType> && std::is_move_assignable_v<DataType>) {
+       std::move(begin, end, data_ptr);
+     } else {
+       std::copy(begin, end, data_ptr);
+     }
    }
 
    template<int OtherSize>
@@ -176,11 +177,11 @@ class SBOVector {
 
    template<int OtherSize>
    SBOVector& operator=(
-       const SBOVector<DataType, OtherSize, Allocator>& other) {
+       const SBOVector<DataType, OtherSize, Allocator>& other) { // TODO
      return *this;
    }
    template<int OtherSize>
-   SBOVector& operator=(SBOVector<DataType, OtherSize, Allocator>&&) {
+   SBOVector& operator=(SBOVector<DataType, OtherSize, Allocator>&&) { // TODO
      return *this;
    }
 
