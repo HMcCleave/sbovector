@@ -6,6 +6,9 @@ constexpr size_t SMALL_SIZE = 5;
 constexpr size_t LARGE_SIZE = 100;
 constexpr size_t SBO_SIZE = 16;
 
+static_assert(SMALL_SIZE < SBO_SIZE);
+static_assert(SBO_SIZE < LARGE_SIZE);
+
 template<typename T>
 struct CountingAllocator {
   int* counter_;
@@ -80,8 +83,21 @@ TEST(SBOVectorOfInts, MustConstructLargeNumberOfCopiesWithCustomAllocator) {
   EXPECT_EQ(alloc_count, 0);
 }
 
-static_assert(SMALL_SIZE < SBO_SIZE);
-static_assert(SBO_SIZE < LARGE_SIZE);
+TEST(SBOVectorOfInts, MustIteratorConstructSmallCollection) {
+  std::vector<int> vec(SMALL_SIZE, 5);
+  ContainerType container(vec.begin(), vec.end());
+  EXPECT_EQ(container.size(), SMALL_SIZE);
+  EXPECT_EQ(container.capacity(), SBO_SIZE);
+  EXPECT_FALSE(container.empty());
+}
+
+TEST(SBOVectorOfInts, MustIteratorConstructLargeCollection) {
+  std::vector<int> vec(LARGE_SIZE, 5);
+  ContainerType container(vec.begin(), vec.end());
+  EXPECT_EQ(container.size(), LARGE_SIZE);
+  EXPECT_GE(container.capacity(), LARGE_SIZE);
+  EXPECT_FALSE(container.empty());
+}
 
 struct CopyMoveCounter {
   static int s_move_count_;

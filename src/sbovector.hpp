@@ -2,6 +2,7 @@
 #define SBOVECTOR_HPP
 
 #include <array>
+#include <algorithm>
 #include <memory>
 #include <initializer_list>
 #include <type_traits>
@@ -9,12 +10,30 @@
 namespace details_ {
 
 template<typename T>
-constexpr bool is_compactable() {
-  return (std::is_empty_v<T> && !std::is_final_v<T>);
-}
+struct is_compactable {
+  static constexpr bool value = (std::is_empty_v<T> && !std::is_final_v<T>);
+};
 
+template<typename T>
+constexpr bool is_compactable_v = is_compactable<T>::value;
 
-template<typename A, typename B, bool = is_compactable<A>()>
+template<typename T, typename = void>
+struct is_iterator {
+  static constexpr bool value = false;
+};
+
+template <typename T>
+struct is_iterator<T,
+                   typename std::enable_if<!std::is_same<
+                       typename std::iterator_traits<T>::value_type,
+                       void>::value>::type> {
+  static constexpr bool value = true;
+};
+
+template<typename T>
+constexpr bool is_iterator_v = is_iterator<T>::value;
+
+template<typename A, typename B, bool = is_compactable_v<A>>
 struct CompactPair final : private A {
   B b_;
 
@@ -126,8 +145,19 @@ class SBOVector {
 
    explicit SBOVector(size_t count, const Allocator& alloc = Allocator()) : SBOVector(count, DataType(), alloc) {}
 
-   template <typename InputIter>
-   SBOVector(InputIter, InputIter, const Allocator& = Allocator());
+   template <typename InputIter, typename = std::enable_if_t<details_::is_iterator_v<InputIter>>>
+   SBOVector(InputIter begin, InputIter end, const Allocator& alloc = Allocator()) : data_(std::true_type{}, alloc) {
+     auto count = (size_t)std::distance(begin, end);
+     auto& ralloc = data_.first();
+     auto& impl = data_.second();
+     impl.count_ = count;
+     DataType* data_ptr = impl.inline_.data();
+     if (count > BufferSize) {
+       data_ptr = impl.external_.data_ = ralloc.allocate(count);
+       impl.external_.capacity_ = count;
+     }
+     std::copy(begin, end, data_ptr);
+   }
 
    template<int OtherSize>
    SBOVector(const SBOVector<DataType, OtherSize, Allocator>&,
@@ -200,8 +230,9 @@ class SBOVector {
    void reserve(size_t) {}
 
    size_t capacity() const noexcept {
-     if (size() <= BufferSize)  // wrt:c++20 [[likely]]
+     if (size() <= BufferSize) {
        return BufferSize;
+     }
      return data_.second().external_.capacity_;
    }
 
