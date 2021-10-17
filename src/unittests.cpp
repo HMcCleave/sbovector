@@ -99,6 +99,13 @@ TEST(SBOVectorOfInts, MustIteratorConstructLargeCollection) {
   EXPECT_FALSE(container.empty());
 }
 
+TEST(SBOVectorOfInts, MustConstructFromInitializerList) {
+  std::initializer_list<int> list{5, 4, 3, 2, 1, 2, 3, 4, 5};
+  ContainerType container(list);
+  EXPECT_EQ(container.size(), list.size());
+  EXPECT_FALSE(container.empty());
+}
+
 struct CopyMoveCounter {
   static int s_move_count_;
   static int s_copy_count_;

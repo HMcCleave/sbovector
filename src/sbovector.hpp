@@ -161,13 +161,14 @@ class SBOVector {
 
    template<int OtherSize>
    SBOVector(const SBOVector<DataType, OtherSize, Allocator>&,
-             const Allocator& = Allocator()) {}
+             const Allocator& = Allocator()) {} // TODO
 
    template<int OtherSize>
    SBOVector(SBOVector<DataType, OtherSize, Allocator>&&,
-             const Allocator& = Allocator()) noexcept {}
+             const Allocator& = Allocator()) noexcept {} // TODO
 
-   SBOVector(std::initializer_list<DataType>, const Allocator& = Allocator()) {}
+   SBOVector(std::initializer_list<DataType> init_list, const Allocator& alloc = Allocator()) 
+     : SBOVector(init_list.begin(), init_list.end(), alloc) {}
 
    ~SBOVector() {
      data_.second().clear(data_.first());
