@@ -40,14 +40,14 @@ TEST(SBOVectorOfInts, MustConstructWithCustomAllocator) {
 }
 
 TEST(SBOVectorOfInts, MustConstructSmallNumberOfCopies) {
-  ContainerType container(SMALL_SIZE, 5);
+  ContainerType container(SMALL_SIZE);
   EXPECT_EQ(container.size(), SMALL_SIZE);
   EXPECT_EQ(container.capacity(), SBO_SIZE);
   EXPECT_FALSE(container.empty());
 }
 
 TEST(SBOVectorOfInts, MustConstructLargeNumberOfCopies) {
-  ContainerType container(LARGE_SIZE, 5);
+  ContainerType container(LARGE_SIZE);
   EXPECT_EQ(container.size(), LARGE_SIZE);
   EXPECT_GE(container.capacity(), LARGE_SIZE);
   EXPECT_FALSE(container.empty());
@@ -63,7 +63,7 @@ TEST(SBOVectorOfInts, MustNotAllocateOnSmallConstruction) {
     }
     void deallocate(...) {}
   } must_not_use{&flag};
-  SBOVector<int, SBO_SIZE, decltype(must_not_use)> container(SMALL_SIZE, 5, must_not_use);
+  SBOVector<int, SBO_SIZE, decltype(must_not_use)> container(SMALL_SIZE, must_not_use);
   EXPECT_FALSE(flag);
 }
 
@@ -71,8 +71,7 @@ TEST(SBOVectorOfInts, MustConstructLargeNumberOfCopiesWithCustomAllocator) {
   int alloc_count = 0;
   CountingAllocator<int> alloc(&alloc_count);
   {
-    SBOVector<int, SBO_SIZE, CountingAllocator<int>> container(LARGE_SIZE, 5,
-                                                               alloc);
+    SBOVector<int, SBO_SIZE, CountingAllocator<int>> container(LARGE_SIZE, alloc);
     EXPECT_EQ(container.size(), LARGE_SIZE);
     EXPECT_GE(container.capacity(), LARGE_SIZE);
     EXPECT_FALSE(container.empty());

@@ -124,7 +124,7 @@ class SBOVector {
      data_.second() = {data_.first(), count, value};
    }
 
-   explicit SBOVector(size_t, const Allocator& = Allocator()) {}
+   explicit SBOVector(size_t count, const Allocator& alloc = Allocator()) : SBOVector(count, DataType(), alloc) {}
 
    template <typename InputIter>
    SBOVector(InputIter, InputIter, const Allocator& = Allocator());
