@@ -185,6 +185,50 @@ TYPED_TEST(SBOVector_, MustConstructFromInitializerList) {
   EXPECT_FALSE(container.empty());
 }
 
+TYPED_TEST(SBOVector_, MustIterateCorrectNumberOfElementsWithInternalBuffer) {
+  ContainerType container(SMALL_SIZE, DataType());
+  auto beg = container.begin();
+  auto end = container.end();
+  auto iter_size = std::distance(beg, end);
+  EXPECT_EQ(SMALL_SIZE, iter_size);
+  auto cbeg = container.cbegin();
+  auto cend = container.cend();
+  iter_size = std::distance(cbeg, cend);
+  EXPECT_EQ(SMALL_SIZE, iter_size);
+}
+
+TYPED_TEST(SBOVector_, MustIterateCorrectNumberOfElementsWithExternalBuffer) {
+  ContainerType container(LARGE_SIZE, DataType());
+  auto beg = container.begin();
+  auto end = container.end();
+  auto iter_size = std::distance(beg, end);
+  EXPECT_EQ(LARGE_SIZE, iter_size);
+  auto cbeg = container.cbegin();
+  auto cend = container.cend();
+  iter_size = std::distance(cbeg, cend);
+  EXPECT_EQ(LARGE_SIZE, iter_size);
+}
+
+TEST(SBOVectorOfInts, MustIterateOverCorrectValuesWithInternalBuffer) {
+  std::vector<int> vec{1, 5, 3, 2, 4};
+  SBOVector<int, SBO_SIZE> container{vec.begin(), vec.end()};
+  auto ref_iter = vec.begin();
+  for (auto iter = container.begin(); iter != container.end();
+       ++iter, ++ref_iter) {
+    EXPECT_EQ(*iter, *ref_iter);
+  }
+}
+
+TEST(SBOVectorOfInts, MustIterateOverCorrectValuesWithExternalBuffer) {
+  std::vector<int> vec{1, 5, 3, 2, 4, 6, 45, 32, 11, -2, 7, 15, 3, 28, 6, 4, 5, 2, 1, 2, 56};
+  SBOVector<int, SBO_SIZE> container{vec.begin(), vec.end()};
+  auto ref_iter = vec.begin();
+  for (auto iter = container.begin(); iter != container.end();
+       ++iter, ++ref_iter) {
+    EXPECT_EQ(*iter, *ref_iter);
+  }
+}
+
 struct CopyMoveCounter {
   static int s_move_count_;
   static int s_copy_count_;

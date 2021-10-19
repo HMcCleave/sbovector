@@ -210,20 +210,35 @@ class SBOVector {
    reference back() { return at(0); }
    const_reference back() const { return at(0); }
 
-   pointer data() noexcept { return nullptr; }
-   const_pointer data() const noexcept { return nullptr; }
-
-   iterator begin() noexcept { 
-     return {};
+   pointer data() noexcept {
+     auto& impl = data_.second();
+     if (impl.count_ <= BufferSize) {
+       return impl.inline_.data();
+     }
+     return impl.external_.data_;
    }
-   const_iterator begin() const noexcept { return {};
+   const_pointer data() const noexcept {
+     auto& impl = data_.second();
+     if (impl.count_ <= BufferSize) {
+       return impl.inline_.data();
+     }
+     return impl.external_.data_;
+   }
+   const_pointer cdata() const noexcept { return data(); }
+
+   iterator begin() noexcept {
+     return data();
+   }
+   const_iterator begin() const noexcept { 
+     return data();
    }
 
-   const_iterator cbegin() const noexcept { return begin();
+   const_iterator cbegin() const noexcept { 
+     return begin();
    }
 
-   iterator end() noexcept { return {}; }
-   const_iterator end() const noexcept { return {}; }
+   iterator end() noexcept { return begin() + size(); }
+   const_iterator end() const noexcept { return cbegin() + size(); }
    const_iterator cend() const noexcept { return end(); }
 
    bool empty() const noexcept { return 0 == size(); }
