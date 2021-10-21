@@ -245,7 +245,22 @@ class SBOVector {
    bool empty() const noexcept { return 0 == size(); }
    size_t size() const noexcept { return data_.second().count_; }
    size_t max_size() const noexcept { return 0; }
-   void reserve_if_external(size_t requested_capacity) {}
+   void reserve_if_external(size_t requested_capacity) {
+     if (requested_capacity <= capacity() || size() <= BufferSize)
+       return;
+     DataType* new_data = data_.first().allocate(requested_capacity);
+     // TODO if using exceptions, throw bad_alloc on nullptr
+     if constexpr (std::is_move_assignable_v<DataType>) {
+       std::uninitialized_move(begin(), end(), new_data);
+     } else {
+       std::uninitialized_copy(begin(), end(), new_data);
+     }
+     std::destroy(begin(), end());
+     data_.first().deallocate(data_.second().external_.data_,
+                              data_.second().external_.capacity_);
+     data_.second().external_.data_ = new_data;
+     data_.second().external_.capacity_ = requested_capacity;
+   }
 
    size_t capacity() const noexcept {
      if (size() <= BufferSize) {
@@ -254,7 +269,22 @@ class SBOVector {
      return data_.second().external_.capacity_;
    }
 
-   void shrink_to_fit() {}
+   void shrink_to_fit_if_external() {
+     if (size() <= BufferSize || size() == capacity())
+       return;
+     DataType* new_data = data_.first().allocate(size());
+     // TODO if using exceptions, throw bad_alloc on nullptr
+     if constexpr (std::is_move_assignable_v<DataType>) {
+       std::uninitialized_move(begin(), end(), new_data);
+     } else {
+       std::uninitialized_copy(begin(), end(), new_data);
+     }
+     std::destroy(begin(), end());
+     data_.first().deallocate(data_.second().external_.data_,
+                              data_.second().external_.capacity_);
+     data_.second().external_.data_ = new_data;
+     data_.second().external_.capacity_ = data_.second().count_;
+   }
 
    void clear() noexcept {}
 
@@ -324,7 +354,7 @@ class SBOVector {
      // as grow will change to an external_buffer, and count_ <= BufferSize implies internal_buffer is being used
      size_t requested = size() * 2;
      DataType* new_data = data_.first().allocate(requested);
-     // if using exceptions, throw bad_alloc on nullptr
+     // TODO if using exceptions, throw bad_alloc on nullptr
      if constexpr (std::is_move_assignable_v<DataType>) {
        std::uninitialized_move(begin(), end(), new_data);
      } else {
