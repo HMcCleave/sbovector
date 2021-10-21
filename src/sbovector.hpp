@@ -102,7 +102,7 @@ class SBOVector {
         init_ptr = external_.data_;
       }
       while (count--) {
-        *init_ptr++ = value;
+        new (init_ptr++) DataType(value);
       }
     }
     ~VectorImpl() { /*Destruction of external_ must be done by SBOVector class to facilitate custom allocator*/ }
@@ -198,8 +198,8 @@ class SBOVector {
 
    Allocator get_allocator() const noexcept { return Allocator(); }
 
-   reference at(size_t) { return inline_.at(0); }
-   const_reference at(size_t) const { return inline_.at(0); }
+   reference at(size_t index) { return *(begin() + index); }
+   const_reference at(size_t) const { return *(cbegin() + index); }
 
    reference operator[](size_t index) { return at(index); }
    const_reference operator[](size_t index) const { return at(index); }
@@ -207,8 +207,8 @@ class SBOVector {
    reference front() { return at(0); }
    const_reference front() const { return at(0); }
 
-   reference back() { return at(0); }
-   const_reference back() const { return at(0); }
+   reference back() { return at(size() - 1); }
+   const_reference back() const { return at(size() - 1); }
 
    pointer data() noexcept {
      auto& impl = data_.second();
@@ -281,7 +281,28 @@ class SBOVector {
    template <typename... Args>
    reference emplace_back(Args&&...) { return back(); }
 
-   void pop_back() {}
+   void pop_back() {
+     auto& impl = data_.second();
+     std::destroy_at<DataType>(&(back()));
+     --impl.count_;
+     if (impl.count_ == BufferSize) {
+       auto external_ptr_copy = impl.external_.data_;
+       auto external_capacity_copy = impl.external_.capacity_;
+       new (&impl.inline_) decltype(impl.inline_)();  // std::array is trivial
+                                                      // constructable so this
+                                                      // will optimze out
+       for (auto& elem : impl.inline_) {
+         if constexpr (std::is_move_constructible_v<DataType>) {
+           new (&elem) DataType(std::move(*external_ptr_copy++));
+         } else {
+           new (&elem) DataType(*external_ptr_copy++);
+         }
+       }
+       std::destroy_n(external_ptr_copy - impl.count_, impl.count_);
+       data_.first().deallocate(external_ptr_copy - impl.count_,
+                                external_capacity_copy);
+     }
+   }
 
    void resize(size_t) {}
    void resize(size_t, const DataType&) {}
