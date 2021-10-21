@@ -63,9 +63,9 @@ class NonTrivial {
 
   ~NonTrivial() {}
 
-  NonTrivial(const NonTrivial& cpy) : NonTrivial() {}
+  NonTrivial(const NonTrivial&) : NonTrivial() {}
 
-  NonTrivial(NonTrivial&& mv) noexcept : NonTrivial() {}
+  NonTrivial(NonTrivial&&) noexcept : NonTrivial() {}
 
   NonTrivial& operator=(const NonTrivial&) {
     return *this;
@@ -248,6 +248,50 @@ TYPED_TEST(SBOVector_,
   EXPECT_EQ(container.size(), SBO_SIZE);
 }
 
+TYPED_TEST(SBOVector_, PushBackCopyMustHandleInternalBuffer) {
+  ContainerType container(SMALL_SIZE);
+  const DataType c_data{};
+  container.push_back(c_data);
+  EXPECT_EQ(container.size(), SMALL_SIZE + 1);
+}
+
+TYPED_TEST(SBOVector_, PushBackCopyMustHandleExternalBuffer) {
+  ContainerType container(LARGE_SIZE);
+  const DataType c_data{};
+  container.push_back(c_data);
+  EXPECT_EQ(container.size(), LARGE_SIZE + 1);
+}
+
+TYPED_TEST(SBOVector_, PushBackCopyMustGrow) {
+  ContainerType container(SBO_SIZE);
+  const DataType c_data{};
+  container.push_back(c_data);
+  EXPECT_EQ(container.size(), SBO_SIZE + 1);
+}
+
+TYPED_TEST(SBOVector_, PushBackMoveMustHandleInternalBuffer) {
+  ContainerType container(SMALL_SIZE);
+  DataType m_data{};
+  container.push_back(std::move(m_data));
+  EXPECT_EQ(container.size(), SMALL_SIZE + 1);
+}
+
+TYPED_TEST(SBOVector_, PushBackMoveMustHandleExternalBuffer) {
+  ContainerType container(LARGE_SIZE);
+  DataType m_data{};
+  container.push_back(std::move(m_data));
+  EXPECT_EQ(container.size(), LARGE_SIZE + 1);
+}
+
+TYPED_TEST(SBOVector_, PushBackMoveMustGrow) {
+  ContainerType container(SBO_SIZE);
+  DataType m_data{};
+  container.push_back(std::move(m_data));
+  EXPECT_EQ(container.size(), SBO_SIZE + 1);
+}
+
+
+
 struct OperationCounter {
   struct OperationTotals {
     int default_constructor_{0};
@@ -262,13 +306,20 @@ struct OperationCounter {
     }
     int moves() const { return move_constructor_ + move_assignment_; }
     int copies() const { return copy_constructor_ + copy_assignment_; }
+    int constructs() const {
+      return default_constructor_ + copy_constructor_ + move_constructor_;
+    }
     int destructs() const { return moved_destructor_ + unmoved_destructor_; }
   };
   bool moved_ { false };
   inline static OperationTotals TOTALS{};
-  OperationCounter() { ++TOTALS.default_constructor_; }
+  OperationCounter() {
+    ++TOTALS.default_constructor_;
+    moved_ = false;
+  }
   OperationCounter(OperationCounter&& from) noexcept {
     ++TOTALS.move_constructor_;
+    moved_ = false;
     from.moved_ = true;
   }
   OperationCounter(const OperationCounter&) { ++TOTALS.copy_constructor_; }
@@ -292,4 +343,19 @@ TEST(SBOVectorInternalBuffer, PopBackMustTriggerSingleDestructor) {
   container.pop_back();
   auto count_after = OperationCounter::TOTALS.destructs();
   EXPECT_EQ(count_before + 1, count_after);
+}
+
+TEST(SBOVectorPushBack, MustDeallocateOldData) {
+  CountingAllocator<OperationCounter>::Totals alloc_totals{};
+  OperationCounter::TOTALS.reset();
+  {
+    SBOVector<OperationCounter, SBO_SIZE, CountingAllocator<OperationCounter>>
+        container(LARGE_SIZE, {&alloc_totals});
+    while (container.size() < container.capacity())
+      container.push_back({});
+    container.push_back({});
+  }
+  auto& Totals = OperationCounter::TOTALS;
+  EXPECT_EQ(Totals.destructs(), Totals.constructs());
+  EXPECT_EQ(alloc_totals.allocs_, alloc_totals.frees_);
 }
