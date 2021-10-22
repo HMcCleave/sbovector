@@ -158,13 +158,18 @@ class SBOVector {
      }
    }
 
-   template<int OtherSize>
-   SBOVector(const SBOVector<DataType, OtherSize, Allocator>&,
-             const Allocator& = Allocator()) {} // TODO
+   template<int OtherSize, typename AllocatorType>
+   SBOVector(const SBOVector<DataType, OtherSize, AllocatorType>& copy,
+             const Allocator& alloc = Allocator()) : SBOVector((size_t)0, alloc) {
+     decltype(copy) temp(copy);
+     this->swap(temp);
+   }
 
-   template<int OtherSize>
-   SBOVector(SBOVector<DataType, OtherSize, Allocator>&&,
-             const Allocator& = Allocator()) noexcept {} // TODO
+   template<int OtherSize, typename AllocatorType>
+   SBOVector(SBOVector<DataType, OtherSize, AllocatorType>&& move_from,
+             const Allocator& alloc = Allocator()) noexcept : SBOVector((size_t)0, alloc) {
+     this->swap(move_from);
+   }
 
    SBOVector(std::initializer_list<DataType> init_list, const Allocator& alloc = Allocator()) 
      : SBOVector(init_list.begin(), init_list.end(), alloc) {}
@@ -174,13 +179,16 @@ class SBOVector {
      data_.second().clear(data_.first());
    }
 
-   template<int OtherSize>
+   template<int OtherSize, typename AllocatorType>
    SBOVector& operator=(
-       const SBOVector<DataType, OtherSize, Allocator>& other) { // TODO
+       const SBOVector<DataType, OtherSize, AllocatorType>& other) {
+     decltype(other) temp(other);
+     this->swap(temp);
      return *this;
    }
-   template<int OtherSize>
-   SBOVector& operator=(SBOVector<DataType, OtherSize, Allocator>&&) { // TODO
+   template<int OtherSize, typename AllocatorType>
+   SBOVector& operator=(SBOVector<DataType, OtherSize, AllocatorType>&& that) {
+     this->swap(that);
      return *this;
    }
 
