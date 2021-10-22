@@ -360,7 +360,77 @@ class SBOVector {
    void resize(size_t) {}
    void resize(size_t, const DataType&) {}
 
-   void swap(SBOVector&) {}
+   template<int OtherSize, typename OtherAllocator, typename = std::enable_if_t<!std::is_same_v<Allocator, OtherAllocator>>>
+   void swap(SBOVector<DataType, OtherSize, OtherAllocator>& that) {
+
+   }
+
+   template<int OtherSize, typename = std::enable_if_t<OtherSize != BufferSize>>
+   void swap(SBOVector<DataType, OtherSize, Allocator>& that) {
+
+   }
+
+   void swap(SBOVector& that) {
+     auto& this_impl = this->data_.second();
+     auto& that_impl = that.data_.second();
+     if (this_impl.count_ > BufferSize && that_impl.count_ > BufferSize) {
+       // Both External
+       std::swap(this_impl.count_, that_impl.count_);
+       std::swap(this_impl.external_.data_, that_impl.external_.data_);
+       std::swap(this_impl.external_.capacity_, that_impl.external_.capacity_);
+     } else if (this_impl.count_ <= BufferSize && that_impl.count_ <= BufferSize) {
+       // Both Inline
+       auto& large_impl = (this_impl.count_ > that_impl.count_ ? this_impl : that_impl);
+       auto& small_impl = (this_impl.count_ > that_impl.count_ ? that_impl : this_impl);
+       for (auto i = 0u; i < small_impl.count_; ++i) {
+         if constexpr (std::is_swappable_v<DataType>) {
+           std::swap<DataType>(large_impl.inline_[i], small_impl.inline_[i]);
+         } else if constexpr(std::is_move_constructible_v<DataType> && std::is_move_assignable_v<DataType>) {
+           DataType temp(std::move(large_impl.inline_[i]));
+           large_impl.inline_[i] = std::move(small_impl.inline_[i]);
+           small_impl.inline_[i] = std::move(temp);
+         } else if constexpr (std::is_copy_constructible_v<DataType> &&
+                              std::is_copy_assignable_v<DataType>) {
+           DataType temp(large_impl.inline_[i]);
+           large_impl.inline_[i] = small_impl.inline_[i];
+           small_impl.inline_[i] = temp;
+         } else {
+           static_assert(std::is_copy_constructible_v<DataType> &&
+                         std::is_copy_assignable_v<DataType>, "DataType is unswappable!");
+         }
+       }
+       {
+         auto start = small_impl.count_;
+         auto count = large_impl.count_ - small_impl.count_;
+         if constexpr (std::is_move_constructible_v<DataType>) {
+           std::uninitialized_move_n(&large_impl.inline_[start], count,
+                                     &small_impl.inline_[start]);
+         } else {
+           std::uninitialized_copy_n(&large_impl.inline_[start], count,
+                                     &small_impl.inline_[start]);
+         }
+       }
+       std::swap(this_impl.count_, that_impl.count_);
+     } else {
+       // Cross Inline/External
+       auto& large_impl =
+           (this_impl.count_ > that_impl.count_ ? this_impl : that_impl);
+       auto& small_impl =
+           (this_impl.count_ > that_impl.count_ ? that_impl : this_impl);
+       auto large_ptr = large_impl.external_.data_;
+       auto large_cap = large_impl.external_.capacity_;
+       if constexpr (std::is_move_constructible_v<DataType>) {
+         std::uninitialized_move_n(small_impl.inline_.data(), small_impl.count_,
+                                   large_impl.inline_.data());
+       } else {
+         std::uninitialized_copy_n(small_impl.inline_.data(), small_impl.count_,
+                                   large_impl.inline_.data());
+       }
+       small_impl.external_.data_ = large_ptr;
+       small_impl.external_.capacity_ = large_cap;
+       std::swap(large_impl.count_, small_impl.count_);
+     }
+   }
 
   private:
    void grow() {

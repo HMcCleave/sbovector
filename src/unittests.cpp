@@ -321,6 +321,29 @@ TYPED_TEST(SBOVector_, MustShrinkToFitIfExternal) {
   EXPECT_EQ(container.size(), container.capacity());
 }
 
+TYPED_TEST(SBOVector_, MustSwapInternalBuffers) {
+  ContainerType first(SMALL_SIZE);
+  ContainerType second(SMALL_SIZE + 1);
+  first.swap(second);
+  EXPECT_EQ(first.size(), SMALL_SIZE + 1);
+  EXPECT_EQ(second.size(), SMALL_SIZE);
+}
+
+TYPED_TEST(SBOVector_, MustSwapExternalBuffers) {
+  ContainerType first(LARGE_SIZE);
+  ContainerType second(LARGE_SIZE + 1);
+  second.swap(first);
+  EXPECT_EQ(first.size(), LARGE_SIZE + 1);
+  EXPECT_EQ(second.size(), LARGE_SIZE);
+}
+
+TYPED_TEST(SBOVector_, MustSwapInternalAndExternalBuffer) {
+  ContainerType first(SMALL_SIZE);
+  ContainerType second(LARGE_SIZE);
+  first.swap(second);
+  EXPECT_EQ(first.size(), LARGE_SIZE);
+  EXPECT_EQ(second.size(), SMALL_SIZE);
+}
 
 
 struct OperationCounter {
