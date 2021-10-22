@@ -286,7 +286,14 @@ class SBOVector {
      data_.second().external_.capacity_ = data_.second().count_;
    }
 
-   void clear() noexcept {}
+   void clear() noexcept {
+     std::destroy(begin(), end());
+     if (data_.second().count_ > BufferSize) {
+       data_.first().deallocate(data_.second().external_.data_,
+                                data_.second().external_.capacity_);
+     }
+     data_.second().count_ = 0;
+   }
 
    iterator insert(const_iterator, const DataType&) { return begin(); }
    iterator insert(const_iterator, DataType&&) { return begin(); }
@@ -312,6 +319,7 @@ class SBOVector {
      ++data_.second().count_;
      new (&back()) DataType(value);
    }
+
    void push_back(DataType&& value) {
      if (size() == capacity())
        grow();
@@ -320,7 +328,13 @@ class SBOVector {
    }
 
    template <typename... Args>
-   reference emplace_back(Args&&...) { return back(); }
+   reference emplace_back(Args&&... args) {
+     if (size() == capacity())
+       grow();
+     ++data_.second().count_;
+     new (&back()) DataType(std::forward<Args>(args)...);
+     return back();
+   }
 
    void pop_back() {
      auto& impl = data_.second();

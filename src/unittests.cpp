@@ -290,6 +290,24 @@ TYPED_TEST(SBOVector_, PushBackMoveMustGrow) {
   EXPECT_EQ(container.size(), SBO_SIZE + 1);
 }
 
+TYPED_TEST(SBOVector_, EmplaceMustHandleInternalBuffer) {
+  ContainerType container(SMALL_SIZE);
+  container.emplace_back();
+  EXPECT_EQ(container.size(), SMALL_SIZE + 1);
+}
+
+TYPED_TEST(SBOVector_, EmplaceMustHandleExternalBuffer) {
+  ContainerType container(LARGE_SIZE);
+  container.emplace_back();
+  EXPECT_EQ(container.size(), LARGE_SIZE + 1);
+}
+
+TYPED_TEST(SBOVector_, EmplaceMoveMustGrow) {
+  ContainerType container(SBO_SIZE);
+  container.emplace_back();
+  EXPECT_EQ(container.size(), SBO_SIZE + 1);
+}
+
 TYPED_TEST(SBOVector_, MustReserveIfExternal) {
   ContainerType container(LARGE_SIZE);
   container.reserve_if_external(LARGE_SIZE * 2);
@@ -382,6 +400,7 @@ TEST(SBOVectorReserve, MustMatchAlloc_Free) {
   }
   EXPECT_EQ(alloc_totals.allocs_, alloc_totals.frees_);
 }
+
 TEST(SBOVectorShrinkToFit, MustMatchAlloc_Free) {
   CountingAllocator<OperationCounter>::Totals alloc_totals{};
   {
