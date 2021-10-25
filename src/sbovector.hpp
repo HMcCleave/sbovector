@@ -268,16 +268,24 @@ class SBOVector {
      insert(begin(), p_begin, p_end);
    }
 
+   SBOVector(const SBOVector& copy) : SBOVector(copy.begin(), copy.end(), copy.get_allocator()) {}
+
+   SBOVector(SBOVector&& move_from) : SBOVector(move_from.get_allocator()) {
+     swap(move_from);
+   }
+
+   template<int OtherSize>
+   SBOVector(const SBOVector<DataType, OtherSize, Allocator>& copy)
+       : SBOVector(copy.begin(), copy.end(), copy.get_allocator()) {}
+
    template<int OtherSize, typename AllocatorType>
    SBOVector(const SBOVector<DataType, OtherSize, AllocatorType>& copy,
-             const Allocator& alloc = Allocator()) : SBOVector((size_t)0, alloc) {
-     decltype(copy) temp(copy);
-     this->swap(temp);
+             const Allocator& alloc = Allocator()) : SBOVector(copy.begin(), copy.end(), alloc) {
    }
 
    template<int OtherSize, typename AllocatorType>
    SBOVector(SBOVector<DataType, OtherSize, AllocatorType>&& move_from,
-             const Allocator& alloc = Allocator()) noexcept : SBOVector((size_t)0, alloc) {
+             const Allocator& alloc = Allocator()) noexcept : SBOVector(alloc) {
      this->swap(move_from);
    }
 

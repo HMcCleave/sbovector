@@ -200,6 +200,11 @@ std::vector<int> vector_from_sequence(std::integer_sequence<int, Values...>) {
   return vector_from_sequence();
 }
 
+template<size_t V>
+std::vector<int> make_vector_sequence() {
+  return vector_from_sequence(std::make_integer_sequence<int, (int)V>());
+}
+
 TYPED_TEST(SBOVector_, MustDefaultConstruct) {
   ContainerType container{};
   EXPECT_EQ(container.size(), 0);
@@ -316,7 +321,7 @@ TEST_F(OperationTrackingSBOVector, MustConstructFromSmallRange) {
 }
 
 TEST(SBOVectorOfInts, MustConstructFromSmallRange) {
-  std::vector<int> vec{1, 2, 3, 4, 5};
+  std::vector<int> vec = make_vector_sequence<SMALL_SIZE>();
   SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
   EXPECT_RANGE_EQ(sbo, vec);
 }
@@ -339,11 +344,90 @@ TEST_F(OperationTrackingSBOVector, MustConstructFromLargeRange) {
 }
 
 TEST(SBOVectorOfInts, MustConstructFromLargeRange) {
-  std::vector<int> vec =
-      vector_from_sequence(std::make_integer_sequence<int, LARGE_SIZE>());
+  std::vector<int> vec = make_vector_sequence<LARGE_SIZE>();
   SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
   EXPECT_RANGE_EQ(sbo, vec);
 }
+
+TYPED_TEST(SBOVector_, MustCopyConstructSmall) {
+  const ContainerType old(SMALL_SIZE);
+  ContainerType new_(old);
+  EXPECT_EQ(new_.size(), SMALL_SIZE);
+}
+
+TEST_F(OperationTrackingSBOVector, MustCopyConstructSmall) {
+  {
+    const ContainerType old(SMALL_SIZE, create_allocator());
+    ContainerType new_(old);
+    EXPECT_EQ(new_.size(), SMALL_SIZE);
+  }
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+}
+
+TEST(SBOVectorOfInts, MustCopyConstructSmall) {
+  std::vector<int> vec = make_vector_sequence<SMALL_SIZE>();
+  const SBOVector<int, SBO_SIZE> old(vec.begin(), vec.end());
+  SBOVector<int, SBO_SIZE> sbo(old);
+  EXPECT_RANGE_EQ(sbo, vec);
+}
+
+TYPED_TEST(SBOVector_, MustCopyConstructLarge) {
+  const ContainerType old(LARGE_SIZE);
+  ContainerType new_(old);
+  EXPECT_EQ(new_.size(), LARGE_SIZE);
+}
+
+TEST_F(OperationTrackingSBOVector, MustCopyConstructLarge) {
+  {
+    const ContainerType old(LARGE_SIZE, create_allocator());
+    ContainerType new_(old);
+    EXPECT_EQ(new_.size(), LARGE_SIZE);
+  }
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+}
+
+TEST(SBOVectorOfInts, MustCopyConstructLarge) {
+  std::vector<int> vec = make_vector_sequence<LARGE_SIZE>();
+  const SBOVector<int, SBO_SIZE> old(vec.begin(), vec.end());
+  SBOVector<int, SBO_SIZE> sbo(old);
+  EXPECT_RANGE_EQ(sbo, vec);
+}
+
+TYPED_TEST(SBOVector_, MustCopyConstructAsymetric) {
+  const SBOVector<DataType, SBO_SIZE + 10, AllocatorType> old(SBO_SIZE + 5);
+  ContainerType new_(old);
+  EXPECT_EQ(new_.size(), SBO_SIZE + 5);
+}
+
+TEST_F(OperationTrackingSBOVector, MustCopyConstructAsymetric) {
+  {
+    const SBOVector<DataType, SBO_SIZE + 10, AllocatorType> old(SBO_SIZE + 5, create_allocator());
+    ContainerType new_(old);
+    EXPECT_EQ(new_.size(), SBO_SIZE + 5);
+  }
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+}
+
+TEST(SBOVectorOfInts, MustCopyConstructAsymetric) {
+  std::vector<int> vec = make_vector_sequence<SBO_SIZE + 5>();
+  const SBOVector<int, SBO_SIZE + 10> old(vec.begin(), vec.end());
+  SBOVector<int, SBO_SIZE> sbo(old);
+  EXPECT_RANGE_EQ(sbo, vec);
+}
+
+TEST(SBOVectorOfInts, MustCopyConstructAsymetricAllocator) {
+  std::vector<int> vec = make_vector_sequence<SBO_SIZE + 5>();
+  const SBOVector<int, SBO_SIZE + 10, CustomAllocator<int> > old(vec.begin(), vec.end());
+  SBOVector<int, SBO_SIZE> sbo(old);
+  EXPECT_RANGE_EQ(sbo, vec);
+}
+
 
 TYPED_TEST(SBOVector_, MustIteratorConstructSmallCollection) {
   std::vector<DataType> vec(SMALL_SIZE, DataType());
