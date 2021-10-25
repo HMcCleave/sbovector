@@ -374,6 +374,73 @@ TYPED_TEST(SBOVector_, MustSwapToSmallerContainer) { /*
   EXPECT_EQ(second.size(), SMALL_SIZE);*/
 }
 
+TYPED_TEST(SBOVector_, MustInsertSingleValue) {
+  const DataType t{};
+  { // Small Container
+    ContainerType small(SMALL_SIZE);
+    auto out = small.insert(small.begin(), DataType());
+    EXPECT_EQ(out, small.begin());
+    EXPECT_EQ(small.size(), SMALL_SIZE + 1);
+  }
+  { // Transitioning Container
+    ContainerType full(SBO_SIZE);
+    full.insert(full.begin(), DataType() );
+    EXPECT_EQ(full.size(), SBO_SIZE + 1);
+  }
+  { // Large Container
+    ContainerType large(LARGE_SIZE);
+    large.insert(large.begin(), DataType());
+    EXPECT_EQ(large.size(), LARGE_SIZE + 1);
+  }
+}
+
+TEST(SBOVector_NonTrivial, MustMoveInsertSingleValue) {
+  using ContainerType = SBOVector<NonTrivial, SBO_SIZE>;
+  using DataType = NonTrivial;
+  {  // Small Container
+    ContainerType small(SMALL_SIZE);
+    DataType t;
+    small.insert(small.begin(), std::move(t));
+    EXPECT_EQ(small.size(), SMALL_SIZE + 1);
+  }
+  {  // Transitioning Container
+    ContainerType full(SBO_SIZE);
+    DataType t;
+    full.insert(full.begin(), std::move(t));
+    EXPECT_EQ(full.size(), SBO_SIZE + 1);
+  }
+  {  // Large Container
+    ContainerType large(LARGE_SIZE);
+    DataType t;
+    large.insert(large.begin(), std::move(t));
+    EXPECT_EQ(large.size(), LARGE_SIZE + 1);
+  }
+}
+
+
+TEST(SBOVector_NonTrivial, MustInsertMultipleValues) {
+  using ContainerType = SBOVector<NonTrivial, SBO_SIZE>;
+  using DataType = NonTrivial;
+  {  // Small Container
+    ContainerType small(SMALL_SIZE);
+    DataType t;
+    small.insert(small.begin(), 2u, t);
+    EXPECT_EQ(small.size(), SMALL_SIZE + 2);
+  }
+  {  // Transitioning Container
+    ContainerType full(SBO_SIZE);
+    DataType t;
+    full.insert(full.begin(), 5u, t);
+    EXPECT_EQ(full.size(), SBO_SIZE + 5);
+  }
+  {  // Large Container
+    ContainerType large(LARGE_SIZE);
+    DataType t;
+    large.insert(large.begin(), 15u, t);
+    EXPECT_EQ(large.size(), LARGE_SIZE + 15);
+  }
+}
+
 
 struct OperationCounter {
   struct OperationTotals {

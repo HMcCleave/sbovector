@@ -82,7 +82,7 @@ struct SBOVectorBase<DataType, BufferSize, Allocator, false> {
 };
 
 template<typename DataType, size_t BufferSize, typename Allocator>
-struct VectorImpl final : public SBOVectorBase<DataType, BufferSize, Allocator> {
+struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
   using BaseType = SBOVectorBase<DataType, BufferSize, Allocator>;
   VectorImpl() : BaseType() {}
   VectorImpl(const Allocator& alloc) : BaseType(alloc) {}
@@ -354,20 +354,25 @@ class SBOVector {
      impl_.external_.capacity_ = impl_.count_;
    }
 
-   void clear() noexcept {
-     std::destroy(begin(), end());
-     if (impl_.count_ > BufferSize) {
-       get_allocator().deallocate(impl_.external_.data_,
-                                impl_.external_.capacity_);
-     }
-     impl_.count_ = 0;
+   void clear() noexcept { 
+     impl_.clear();
    }
 
-   iterator insert(const_iterator, const DataType&) { return begin(); }
-   iterator insert(const_iterator, DataType&&) { return begin(); }
-   iterator insert(const_iterator, size_t, const DataType&) { return begin(); }
+   iterator insert(const_iterator pos, const DataType& v) { 
+     return insert(pos, &v, (&v) + 1);
+   }
 
-   template<typename InputIt>
+   iterator insert(const_iterator pos, DataType&& todo_move) {
+     DataType t(todo_move);
+     return insert(pos, t);
+   }
+
+   iterator insert(const_iterator pos, size_t count, const DataType& v) {
+     std::vector<DataType> temp(count, v);
+     return insert(pos, temp.begin(), temp.end());
+   }
+
+   template<typename InputIt, typename = std::enable_if_t<details_::is_iterator_v<InputIt>>>
    iterator insert(const_iterator pos, InputIt p_begin, InputIt p_end) {
      size_t out_pos = std::distance(cbegin(), pos);
      auto shift_count = std::distance(pos, cend());
@@ -416,6 +421,7 @@ class SBOVector {
    iterator insert(const_iterator pos, std::initializer_list<DataType> list) {
      return insert(pos, list.begin(), list.end());
    }
+
    template <typename... Args>
    iterator emplace(const_iterator pos, Args&&... args) {
      return begin();
