@@ -125,6 +125,24 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     count_ = 0;
   }
 
+  void internalize() {
+    // Helper function, must be called when decreasing in size such that the count is <= BufferSize but an external buffer still exists
+    auto external_ptr_copy = external_.data_;
+    auto external_capacity_copy = external_.capacity_;
+    new (&inline_) decltype(inline_)(); 
+    if constexpr (std::is_move_constructible_v<DataType>) {
+      std::uninitialized_move_n(
+          external_ptr_copy, count_,
+          reinterpret_cast<DataType*>(inline_.data()));
+    } else {
+      std::uninitialized_copy_n(
+          external_ptr_copy, count_,
+          reinterpret_cast<DataType*>(inline_.data()));
+    }
+    std::destroy_n(external_ptr_copy, count_);
+    get_allocator().deallocate(external_ptr_copy, external_capacity_copy);
+  }
+
   template <size_t SmallerSize, typename OA>
   void inline_swap(VectorImpl<DataType, SmallerSize, OA> &smaller) {
     // Both Inline
@@ -427,8 +445,28 @@ class SBOVector {
      return begin();
    }
 
-   iterator erase(const_iterator) { return begin(); }
-   iterator erase(const_iterator, const_iterator) { return begin(); }
+   iterator erase(const_iterator pos) { 
+     size_t out_d = std::distance(cbegin(), pos);
+     if constexpr (std::is_move_assignable_v<DataType>) {
+       std::move(begin() + out_d + 1, end(), begin() + out_d);
+     } else {
+       std::copy(pos + 1, cend(), begin() + out_d);
+     }
+     std::destroy_at(cend() - 1);
+     if (--impl_.count_ == BufferSize) {
+       impl_.internalize();
+     }
+     return begin() + out_d;
+   }
+
+   iterator erase(const_iterator p_begin, const_iterator p_end) {
+     size_t start = std::distance(cbegin(), p_begin);
+     size_t count = std::distance(p_begin, p_end);
+     for (size_t i = 1; i < count; ++i) {
+       erase(begin() + start);
+     }
+     return erase(begin() + start);
+   }
 
    void push_back(const DataType& value) {
      if (size() == capacity())
@@ -457,19 +495,7 @@ class SBOVector {
      std::destroy_at<DataType>(&(back()));
      --impl_.count_;
      if (impl_.count_ == BufferSize) {
-       auto external_ptr_copy = impl_.external_.data_;
-       auto external_capacity_copy = impl_.external_.capacity_;
-       new (&impl_.inline_) decltype(impl_.inline_)();  // std::array is trivial
-                                                      // constructable so this
-                                                      // will optimze out
-       if constexpr (std::is_move_constructible_v<DataType>) {
-         std::uninitialized_move_n(external_ptr_copy, BufferSize, reinterpret_cast<pointer>(impl_.inline_.data()));
-       } else {
-         std::uninitialized_copy_n(external_ptr_copy, BufferSize,
-                                   reinterpret_cast<pointer>(impl_.inline_.data()));
-       }
-       std::destroy_n(external_ptr_copy, impl_.count_);
-       get_allocator().deallocate(external_ptr_copy, external_capacity_copy);
+       impl_.internalize();
      }
    }
 

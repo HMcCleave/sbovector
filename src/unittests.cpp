@@ -393,7 +393,6 @@ TYPED_TEST(SBOVector_, MustInsertSingleValue) {
     EXPECT_EQ(large.size(), LARGE_SIZE + 1);
   }
 }
-
 TEST(SBOVector_NonTrivial, MustMoveInsertSingleValue) {
   using ContainerType = SBOVector<NonTrivial, SBO_SIZE>;
   using DataType = NonTrivial;
@@ -416,8 +415,6 @@ TEST(SBOVector_NonTrivial, MustMoveInsertSingleValue) {
     EXPECT_EQ(large.size(), LARGE_SIZE + 1);
   }
 }
-
-
 TEST(SBOVector_NonTrivial, MustInsertMultipleValues) {
   using ContainerType = SBOVector<NonTrivial, SBO_SIZE>;
   using DataType = NonTrivial;
@@ -438,6 +435,42 @@ TEST(SBOVector_NonTrivial, MustInsertMultipleValues) {
     DataType t;
     large.insert(large.begin(), 15u, t);
     EXPECT_EQ(large.size(), LARGE_SIZE + 15);
+  }
+}
+
+TYPED_TEST(SBOVector_, MustEraseSingleValue) {
+  {
+    ContainerType small(SMALL_SIZE);
+    small.erase(small.begin() + 1);
+    EXPECT_EQ(small.size(), SMALL_SIZE - 1);
+  }
+  { 
+    ContainerType shrinking(SBO_SIZE + 1);
+    shrinking.erase(shrinking.begin());
+    EXPECT_EQ(shrinking.size(), SBO_SIZE);
+  }
+  { 
+    ContainerType large(LARGE_SIZE);
+    large.erase(large.end() - 1);
+    EXPECT_EQ(large.size(), LARGE_SIZE - 1);
+  }
+}
+
+TYPED_TEST(SBOVector_, MustEraseRange) {
+  {
+    ContainerType small(SMALL_SIZE);
+    small.erase(small.begin() + 1, small.end());
+    EXPECT_EQ(small.size(), 1);
+  }
+  {
+    ContainerType shrinking(SBO_SIZE + 1);
+    shrinking.erase(shrinking.begin() + 1, shrinking.end());
+    EXPECT_EQ(shrinking.size(), 1);
+  }
+  {
+    ContainerType large(LARGE_SIZE);
+    large.erase(large.begin(), large.end() - 1);
+    EXPECT_EQ(large.size(), 1);
   }
 }
 
