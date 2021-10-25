@@ -155,6 +155,9 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     return external_.capacity_;
   }
 
+  // Create Uninitialized Space x insert_count at begin() + pos
+  // eg: if X is a value and U uninitialized space
+  // { X, X, X, X }.insert_uniinitialized(2,3) -> { X, X, U, U, U, X, X }
   void insert_unninitialized(size_t pos, size_t insert_count) {
     if (count_ + insert_count <= capacity()) {
       insert_unninitialized_in_cap(pos, insert_count);

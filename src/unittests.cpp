@@ -190,6 +190,16 @@ void EXPECT_RANGE_EQ(const Range1& A, const Range2& B) {
   }
 }
 
+template<int... Values>
+std::vector<int> vector_from_sequence() {
+  return std::vector<int>{Values...};
+}
+
+template<int... Values>
+std::vector<int> vector_from_sequence(std::integer_sequence<int, Values...>) {
+  return vector_from_sequence();
+}
+
 TYPED_TEST(SBOVector_, MustDefaultConstruct) {
   ContainerType container{};
   EXPECT_EQ(container.size(), 0);
@@ -285,6 +295,53 @@ TEST(SBOVectorOfInts, MustConstructFromInitializerList) {
   std::initializer_list<int> list{1, 45, 6, 3, 5, 8, 19};
   SBOVector<int, SBO_SIZE> sbo(list);
   std::vector<int> vec(list);
+  EXPECT_RANGE_EQ(sbo, vec);
+}
+
+TYPED_TEST(SBOVector_, MustConstructFromSmallRange) {
+  std::vector<DataType> vec(SMALL_SIZE);
+  ContainerType container(vec.begin(), vec.end());
+  EXPECT_EQ(container.size(), SMALL_SIZE);
+}
+
+TEST_F(OperationTrackingSBOVector, MustConstructFromSmallRange) {
+  {
+    std::vector<DataType> vec(SMALL_SIZE);
+    ContainerType container(vec.begin(), vec.end(), create_allocator());
+    EXPECT_EQ(container.size(), SMALL_SIZE);
+  }
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+}
+
+TEST(SBOVectorOfInts, MustConstructFromSmallRange) {
+  std::vector<int> vec{1, 2, 3, 4, 5};
+  SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
+  EXPECT_RANGE_EQ(sbo, vec);
+}
+
+TYPED_TEST(SBOVector_, MustConstructFromLargeRange) {
+  std::vector<DataType> vec(LARGE_SIZE);
+  ContainerType container(vec.begin(), vec.end());
+  EXPECT_EQ(container.size(), LARGE_SIZE);
+}
+
+TEST_F(OperationTrackingSBOVector, MustConstructFromLargeRange) {
+  {
+    std::vector<DataType> vec(LARGE_SIZE);
+    ContainerType container(vec.begin(), vec.end(), create_allocator());
+    EXPECT_EQ(container.size(), LARGE_SIZE);
+  }
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+}
+
+TEST(SBOVectorOfInts, MustConstructFromLargeRange) {
+  std::vector<int> vec =
+      vector_from_sequence(std::make_integer_sequence<int, LARGE_SIZE>());
+  SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
   EXPECT_RANGE_EQ(sbo, vec);
 }
 
