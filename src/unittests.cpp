@@ -494,6 +494,16 @@ TYPED_TEST(SBOVector_, MustEraseRange) {
   }
 }
 
+TYPED_TEST(SBOVector_, MustResize) {
+  ContainerType c(SMALL_SIZE);
+  c.resize(SBO_SIZE);
+  EXPECT_EQ(c.size(), SBO_SIZE);
+  c.resize(LARGE_SIZE, DataType());
+  EXPECT_EQ(c.size(), LARGE_SIZE);
+  c.resize(SMALL_SIZE);
+  EXPECT_EQ(c.size(), SMALL_SIZE);
+}
+
 
 struct OperationCounter {
   struct OperationTotals {

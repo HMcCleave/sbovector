@@ -499,8 +499,17 @@ class SBOVector {
      }
    }
 
-   void resize(size_t) {}
-   void resize(size_t, const DataType&) {}
+   void resize(size_t count) {
+     DataType value;
+     resize(count, value);
+   }
+   void resize(size_t count, const DataType& v) {
+     while (impl_.count_ > count)
+       pop_back();
+     if (impl_.count_ < count) {
+       insert(end(), count - impl_.count_, v);
+     }
+   }
 
    template<int OtherSize, typename OtherAllocator, typename = std::enable_if_t<!std::is_same_v<Allocator, OtherAllocator>>>
    void swap(SBOVector<DataType, OtherSize, OtherAllocator>& that) {
