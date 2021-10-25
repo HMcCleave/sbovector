@@ -34,57 +34,58 @@ struct is_iterator<T,
 template<typename T>
 constexpr bool is_iterator_v = is_iterator<T>::value;
 
-template<typename A, typename B, bool = is_compactable_v<A>>
-struct CompactPair final : private A {
-  B b_;
-
-  CompactPair(const A& a) 
-    : A(a),
-      b_() {}
-
-  CompactPair()
-    : A(), b_() {}
-
-  ~CompactPair() {}
-
-
-  A& first() { return *this; }
-  const A& first() const { return *this; }
-  B& second() { return b_; }
-  const B& second() const { return b_; }
-};
-
-template<typename A, typename B>
-struct CompactPair<A, B, false> final {
-  A a_;
-  B b_;
-
-  CompactPair(const A& a)
-      : a_(a),
-        b_() {}
-
-  CompactPair()
-      : a_(), b_() {}
-
-  ~CompactPair() {}
-
-  A& first() { return a_; }
-  const A& first() const { return a_; }
-  B& second() { return b_; }
-  const B& second() const { return b_; }
-};
-
-template<typename DataType, size_t BufferSize, typename Allocator>
-struct VectorImpl {
+template<typename DataType, size_t BufferSize, typename Allocator, bool = is_compactable_v<Allocator>>
+struct SBOVectorBase : private Allocator {
   size_t count_;
   union {
-    std::array<std::aligned_storage_t<sizeof(DataType), alignof(DataType)>, BufferSize> inline_;
+    std::array<std::aligned_storage_t<sizeof(DataType), alignof(DataType)>,
+               BufferSize>
+        inline_;
     struct {
       DataType* data_;
       size_t capacity_;
     } external_;
   };
-  VectorImpl() : count_(0), inline_{} {}
+
+  SBOVectorBase() : Allocator(), count_(0), inline_() {}
+  SBOVectorBase(const Allocator& alloc)
+      : Allocator(alloc), count_(0), inline_() {}
+
+  ~SBOVectorBase() { /*intentionally empty*/ }
+
+  Allocator get_allocator() const { return *this; }
+};
+
+template<typename DataType, size_t BufferSize, typename Allocator>
+struct SBOVectorBase<DataType, BufferSize, Allocator, false> {
+  Allocator alloc_;
+  size_t count_;
+  union {
+    std::array<std::aligned_storage_t<sizeof(DataType), alignof(DataType)>,
+               BufferSize>
+        inline_;
+    struct {
+      DataType* data_;
+      size_t capacity_;
+    } external_;
+  };
+
+  
+  SBOVectorBase() : alloc_(), count_(0), inline_() {}
+  SBOVectorBase(const Allocator& alloc)
+      : alloc_(alloc), count_(0), inline_() {}
+
+  ~SBOVectorBase() { /*intentionally empty*/ }
+
+
+  Allocator get_allocator() const { return alloc_; }
+};
+
+template<typename DataType, size_t BufferSize, typename Allocator>
+struct VectorImpl final : public SBOVectorBase<DataType, BufferSize, Allocator> {
+  using BaseType = SBOVectorBase<DataType, BufferSize, Allocator>;
+  VectorImpl() : BaseType() {}
+  VectorImpl(const Allocator& alloc) : BaseType(alloc) {}
 
   void clean_assign(Allocator& alloc, size_t count, const DataType& value) {
     // assumes clean [count_ == 0]
@@ -98,27 +99,28 @@ struct VectorImpl {
     while (count--)
       new (init_ptr++) DataType(value);
   }
-  ~VectorImpl() { /*Destruction of external_ must be done by SBOVector class to
-                     facilitate custom allocator*/
+
+  ~VectorImpl() { 
+    clear();
   }
 
-  DataType& at(size_t index) {
-    if (count_ < BufferSize) {
-      return reinterpret_cast<DataType&>(inline_.at(index));
-    }
-    return external_.data_ + index;
+  DataType* begin() {
+    return (count_ <= BufferSize ? reinterpret_cast<DataType*>(inline_.data())
+                                 : external_.data_);
   }
 
-  const DataType& at(size_t index) const {
-    if (count_ < BufferSize) {
-      return reinterpret_cast<const DataType&>(inline_.at(index));
-    }
-    return external_.data_ + index;
+  const DataType* begin() const {
+    return (count_ <= BufferSize ? reinterpret_cast<const DataType*>(inline_.data())
+                                 : external_.data_);
   }
 
-  void clear(Allocator& alloc) {
+  DataType* end() { return begin() + count_; }
+  const DataType* end() const { return begin() + count_; }
+
+  void clear() {
+    std::destroy(begin(), end());
     if (count_ > BufferSize) {
-      alloc.deallocate(external_.data_, external_.capacity_);
+      get_allocator().deallocate(external_.data_, external_.capacity_);
     }
     count_ = 0;
   }
@@ -175,9 +177,7 @@ struct VectorImpl {
 template<typename DataType, size_t BufferSize, typename Allocator = std::allocator<DataType>>
 class SBOVector {
  private:
-
-
-  details_::CompactPair<Allocator, details_::VectorImpl<DataType, BufferSize, Allocator>> data_;
+  details_::VectorImpl<DataType, BufferSize, Allocator> impl_;
 
  public:
    using value_type = DataType;
@@ -192,28 +192,26 @@ class SBOVector {
    using reference = DataType&;
    using const_reference = const DataType&;
 
-   SBOVector() : data_() {}
+   SBOVector() : impl_() {}
 
    explicit SBOVector(const Allocator& alloc) noexcept
-       : data_(alloc) {}
+       : impl_(alloc) {}
 
    SBOVector(size_t count, const DataType& value, const Allocator& alloc = Allocator())
-       : data_(alloc) {
-     data_.second().clean_assign(data_.first(), count, value);
+       : impl_(alloc) {
+     impl_.clean_assign(get_allocator(), count, value);
    }
 
    explicit SBOVector(size_t count, const Allocator& alloc = Allocator()) : SBOVector(count, DataType(), alloc) {}
 
    template <typename InputIter, typename = std::enable_if_t<details_::is_iterator_v<InputIter>>>
-   SBOVector(InputIter begin, InputIter end, const Allocator& alloc = Allocator()) : data_(alloc) {
+   SBOVector(InputIter begin, InputIter end, const Allocator& alloc = Allocator()) : impl_(alloc) {
      auto count = (size_t)std::distance(begin, end);
-     auto& ralloc = data_.first();
-     auto& impl = data_.second();
-     impl.count_ = count;
-     auto data_ptr = reinterpret_cast<pointer>(impl.inline_.data());
+     impl_.count_ = count;
+     auto data_ptr = reinterpret_cast<pointer>(impl_.inline_.data());
      if (count > BufferSize) {
-       data_ptr = impl.external_.data_ = ralloc.allocate(count);
-       impl.external_.capacity_ = count;
+       data_ptr = impl_.external_.data_ = get_allocator().allocate(count);
+       impl_.external_.capacity_ = count;
      }
      if constexpr (!std::is_trivial_v<DataType> && std::is_move_assignable_v<DataType>) {
        std::uninitialized_move(begin, end, data_ptr);
@@ -276,7 +274,7 @@ class SBOVector {
      assign(list.begin(), list.end());
    }
 
-   Allocator get_allocator() const noexcept { return data_.first(); }
+   Allocator get_allocator() const noexcept { return impl_.get_allocator(); }
 
    reference at(size_t index) { return *(begin() + index); }
    const_reference at(size_t) const { return *(cbegin() + index); }
@@ -291,18 +289,10 @@ class SBOVector {
    const_reference back() const { return at(size() - 1); }
 
    pointer data() noexcept {
-     auto& impl = data_.second();
-     if (impl.count_ <= BufferSize) {
-       return reinterpret_cast<pointer>(impl.inline_.data());
-     }
-     return impl.external_.data_;
+     return impl_.begin();
    }
-   const_pointer data() const noexcept {
-     auto& impl = data_.second();
-     if (impl.count_ <= BufferSize) {
-       return reinterpret_cast<const_pointer>(impl.inline_.data());
-     }
-     return impl.external_.data_;
+   const_pointer data() const noexcept { 
+     return impl_.begin();
    }
    const_pointer cdata() const noexcept { return data(); }
 
@@ -322,12 +312,12 @@ class SBOVector {
    const_iterator cend() const noexcept { return end(); }
 
    bool empty() const noexcept { return 0 == size(); }
-   size_t size() const noexcept { return data_.second().count_; }
+   size_t size() const noexcept { return impl_.count_; }
    size_t max_size() const noexcept { return 0; }
    void reserve_if_external(size_t requested_capacity) {
      if (requested_capacity <= capacity() || size() <= BufferSize)
        return;
-     DataType* new_data = data_.first().allocate(requested_capacity);
+     DataType* new_data = get_allocator().allocate(requested_capacity);
      // TODO if using exceptions, throw bad_alloc on nullptr
      if constexpr (std::is_move_assignable_v<DataType>) {
        std::uninitialized_move(begin(), end(), new_data);
@@ -335,23 +325,23 @@ class SBOVector {
        std::uninitialized_copy(begin(), end(), new_data);
      }
      std::destroy(begin(), end());
-     data_.first().deallocate(data_.second().external_.data_,
-                              data_.second().external_.capacity_);
-     data_.second().external_.data_ = new_data;
-     data_.second().external_.capacity_ = requested_capacity;
+     get_allocator().deallocate(impl_.external_.data_,
+                              impl_.external_.capacity_);
+     impl_.external_.data_ = new_data;
+     impl_.external_.capacity_ = requested_capacity;
    }
 
    size_t capacity() const noexcept {
      if (size() <= BufferSize) {
        return BufferSize;
      }
-     return data_.second().external_.capacity_;
+     return impl_.external_.capacity_;
    }
 
    void shrink_to_fit_if_external() {
      if (size() <= BufferSize || size() == capacity())
        return;
-     DataType* new_data = data_.first().allocate(size());
+     DataType* new_data = get_allocator().allocate(size());
      // TODO if using exceptions, throw bad_alloc on nullptr
      if constexpr (std::is_move_assignable_v<DataType>) {
        std::uninitialized_move(begin(), end(), new_data);
@@ -359,19 +349,18 @@ class SBOVector {
        std::uninitialized_copy(begin(), end(), new_data);
      }
      std::destroy(begin(), end());
-     data_.first().deallocate(data_.second().external_.data_,
-                              data_.second().external_.capacity_);
-     data_.second().external_.data_ = new_data;
-     data_.second().external_.capacity_ = data_.second().count_;
+     get_allocator().deallocate(impl_.external_.data_, impl_.external_.capacity_);
+     impl_.external_.data_ = new_data;
+     impl_.external_.capacity_ = impl_.count_;
    }
 
    void clear() noexcept {
      std::destroy(begin(), end());
-     if (data_.second().count_ > BufferSize) {
-       data_.first().deallocate(data_.second().external_.data_,
-                                data_.second().external_.capacity_);
+     if (impl_.count_ > BufferSize) {
+       get_allocator().deallocate(impl_.external_.data_,
+                                impl_.external_.capacity_);
      }
-     data_.second().count_ = 0;
+     impl_.count_ = 0;
    }
 
    iterator insert(const_iterator, const DataType&) { return begin(); }
@@ -383,7 +372,7 @@ class SBOVector {
      size_t out_pos = std::distance(cbegin(), pos);
      auto shift_count = std::distance(pos, cend());
      auto insert_count = std::distance(p_begin, p_end);
-     if (size() + insert_count <= BufferSize) {
+     if (size() + insert_count <= capacity()) {
        auto uninit_count = std::min(shift_count, insert_count);
        auto assign_count = shift_count - uninit_count;
        auto old_end = end();
@@ -397,7 +386,7 @@ class SBOVector {
          std::copy_backward(pos, pos + assign_count, old_end);
          std::copy(p_begin, p_end, begin() + out_pos);
        }
-       data_.second().count_ += insert_count;
+       impl_.count_ += insert_count;
      } else {
        size_t new_size = size() + insert_count;
        DataType* new_buffer = get_allocator().allocate(new_size);
@@ -417,9 +406,9 @@ class SBOVector {
                                    new_buffer + preceeding + insert_count);
        }
        clear();
-       data_.second().count_ = new_size;
-       data_.second().external_.data_ = new_buffer;
-       data_.second().external_.capacity_ = new_size;
+       impl_.count_ = new_size;
+       impl_.external_.data_ = new_buffer;
+       impl_.external_.capacity_ = new_size;
      }
      return begin() + out_pos;
    }
@@ -438,14 +427,14 @@ class SBOVector {
    void push_back(const DataType& value) {
      if (size() == capacity())
        grow();
-     ++data_.second().count_;
+     ++impl_.count_;
      new (&back()) DataType(value);
    }
 
    void push_back(DataType&& value) {
      if (size() == capacity())
        grow();
-     ++data_.second().count_;
+     ++impl_.count_;
      new (&back()) DataType(value);
    }
 
@@ -453,29 +442,28 @@ class SBOVector {
    reference emplace_back(Args&&... args) {
      if (size() == capacity())
        grow();
-     ++data_.second().count_;
+     ++impl_.count_;
      new (&back()) DataType(std::forward<Args>(args)...);
      return back();
    }
 
    void pop_back() {
-     auto& impl = data_.second();
      std::destroy_at<DataType>(&(back()));
-     --impl.count_;
-     if (impl.count_ == BufferSize) {
-       auto external_ptr_copy = impl.external_.data_;
-       auto external_capacity_copy = impl.external_.capacity_;
-       new (&impl.inline_) decltype(impl.inline_)();  // std::array is trivial
+     --impl_.count_;
+     if (impl_.count_ == BufferSize) {
+       auto external_ptr_copy = impl_.external_.data_;
+       auto external_capacity_copy = impl_.external_.capacity_;
+       new (&impl_.inline_) decltype(impl_.inline_)();  // std::array is trivial
                                                       // constructable so this
                                                       // will optimze out
        if constexpr (std::is_move_constructible_v<DataType>) {
-         std::uninitialized_move_n(external_ptr_copy, BufferSize, reinterpret_cast<pointer>(impl.inline_.data()));
+         std::uninitialized_move_n(external_ptr_copy, BufferSize, reinterpret_cast<pointer>(impl_.inline_.data()));
        } else {
          std::uninitialized_copy_n(external_ptr_copy, BufferSize,
-                                   reinterpret_cast<pointer>(impl.inline_.data()));
+                                   reinterpret_cast<pointer>(impl_.inline_.data()));
        }
-       std::destroy_n(external_ptr_copy, impl.count_);
-       data_.first().deallocate(external_ptr_copy, external_capacity_copy);
+       std::destroy_n(external_ptr_copy, impl_.count_);
+       get_allocator().deallocate(external_ptr_copy, external_capacity_copy);
      }
    }
 
@@ -494,8 +482,8 @@ class SBOVector {
 
    template<size_t OtherSize, typename = std::enable_if_t<OtherSize != BufferSize>>
    void swap(SBOVector<DataType, OtherSize, Allocator>& that) {
-     auto& this_impl = this->data_.second();
-     auto& that_impl = that.data_.second();
+     auto& this_impl = impl_;
+     auto& that_impl = that.impl_;
      auto largest_buffer = std::max(BufferSize, OtherSize);
      auto smallest_buffer = std::min(BufferSize, OtherSize);
      if (this_impl.count_ > largest_buffer &&
@@ -515,8 +503,8 @@ class SBOVector {
    }
 
    void swap(SBOVector& that) {
-     auto& this_impl = this->data_.second();
-     auto& that_impl = that.data_.second();
+     auto& this_impl = impl_;
+     auto& that_impl = that.impl_;
      if (this_impl.count_ > BufferSize && that_impl.count_ > BufferSize) {
        swap_external_buffers(that);
      } else if (this_impl.count_ <= BufferSize && that_impl.count_ <= BufferSize) {
@@ -547,7 +535,7 @@ class SBOVector {
      // Note: if calling grown with count_ <= BufferSize, you must immediately insert sufficient elements
      // as grow will change to an external_buffer, and count_ <= BufferSize implies internal_buffer is being used
      size_t requested = size() * 2;
-     DataType* new_data = data_.first().allocate(requested);
+     DataType* new_data = get_allocator().allocate(requested);
      // TODO if using exceptions, throw bad_alloc on nullptr
      if constexpr (std::is_move_assignable_v<DataType>) {
        std::uninitialized_move(begin(), end(), new_data);
@@ -556,17 +544,17 @@ class SBOVector {
      }
      std::destroy(begin(), end());
      if (size() > BufferSize) {
-       data_.first().deallocate(data_.second().external_.data_,
-                                data_.second().external_.capacity_);
+       get_allocator().deallocate(impl_.external_.data_,
+                                impl_.external_.capacity_);
      }
-     data_.second().external_.data_ = new_data;
-     data_.second().external_.capacity_ = requested;
+     impl_.external_.data_ = new_data;
+     impl_.external_.capacity_ = requested;
    }
 
    template<typename Other>
    inline void swap_inline_buffers(Other& that) {
-     auto& this_impl = data_.second();
-     auto& that_impl = that.data_.second();
+     auto& this_impl = impl_;
+     auto& that_impl = that.impl_;
      if (this_impl.count_ > that_impl.count_) {
        this_impl.inline_swap(that_impl);
      } else {
@@ -577,8 +565,8 @@ class SBOVector {
    template<size_t OtherSize>
    inline void swap_external_buffers(
        SBOVector<DataType, OtherSize, Allocator>& that) {
-     auto& this_impl = this->data_.second();
-     auto& that_impl = that.data_.second();
+     auto& this_impl = this->impl_;
+     auto& that_impl = that.impl_;
      std::swap(this_impl.count_, that_impl.count_);
      std::swap(this_impl.external_.data_, that_impl.external_.data_);
      std::swap(this_impl.external_.capacity_, that_impl.external_.capacity_);
