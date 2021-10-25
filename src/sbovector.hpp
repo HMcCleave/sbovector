@@ -87,19 +87,6 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
   VectorImpl() : BaseType() {}
   VectorImpl(const Allocator& alloc) : BaseType(alloc) {}
 
-  void clean_assign(Allocator& alloc, size_t count, const DataType& value) {
-    // assumes clean [count_ == 0]
-    count_ = count;
-    DataType* init_ptr = reinterpret_cast<DataType*>(inline_.data());
-    if (count_ > BufferSize) {
-      external_.data_ = alloc.allocate(count);
-      external_.capacity_ = count_;
-      init_ptr = external_.data_;
-    }
-    while (count--)
-      new (init_ptr++) DataType(value);
-  }
-
   ~VectorImpl() { 
     clear();
   }
@@ -217,25 +204,14 @@ class SBOVector {
 
    SBOVector(size_t count, const DataType& value, const Allocator& alloc = Allocator())
        : impl_(alloc) {
-     impl_.clean_assign(get_allocator(), count, value);
+     insert(begin(), count, value);
    }
 
    explicit SBOVector(size_t count, const Allocator& alloc = Allocator()) : SBOVector(count, DataType(), alloc) {}
 
    template <typename InputIter, typename = std::enable_if_t<details_::is_iterator_v<InputIter>>>
-   SBOVector(InputIter begin, InputIter end, const Allocator& alloc = Allocator()) : impl_(alloc) {
-     auto count = (size_t)std::distance(begin, end);
-     impl_.count_ = count;
-     auto data_ptr = reinterpret_cast<pointer>(impl_.inline_.data());
-     if (count > BufferSize) {
-       data_ptr = impl_.external_.data_ = get_allocator().allocate(count);
-       impl_.external_.capacity_ = count;
-     }
-     if constexpr (!std::is_trivial_v<DataType> && std::is_move_assignable_v<DataType>) {
-       std::uninitialized_move(begin, end, data_ptr);
-     } else {
-       std::uninitialized_copy(begin, end, data_ptr);
-     }
+   SBOVector(InputIter p_begin, InputIter p_end, const Allocator& alloc = Allocator()) : impl_(alloc) {
+     insert(begin(), p_begin, p_end);
    }
 
    template<int OtherSize, typename AllocatorType>
