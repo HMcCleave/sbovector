@@ -10,6 +10,8 @@
 
 namespace details_ {
 
+constexpr size_t kSBOVectorGrowthFactor = 2;
+
 template<typename T>
 struct is_compactable {
   static constexpr bool value = (std::is_empty_v<T> && !std::is_final_v<T>);
@@ -551,7 +553,7 @@ class SBOVector {
    void grow() {
      // Note: if calling grown with count_ <= BufferSize, you must immediately insert sufficient elements
      // as grow will change to an external_buffer, and count_ <= BufferSize implies internal_buffer is being used
-     size_t requested = size() * 2;
+     size_t requested = size() * details_::kSBOVectorGrowthFactor;
      DataType* new_data = get_allocator().allocate(requested);
      // TODO if using exceptions, throw bad_alloc on nullptr
      if constexpr (std::is_move_assignable_v<DataType>) {
