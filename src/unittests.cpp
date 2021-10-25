@@ -96,6 +96,49 @@ class NoCopy {
   NoCopy& operator=(NoCopy&&) noexcept {}
 };
 
+struct OperationCounter {
+  struct OperationTotals {
+    int default_constructor_{0};
+    int copy_constructor_{0};
+    int move_constructor_{0};
+    int copy_assignment_{0};
+    int move_assignment_{0};
+    int moved_destructor_{0};
+    int unmoved_destructor_{0};
+    void reset() { memset(this, 0, sizeof(this)); }
+    int moves() const { return move_constructor_ + move_assignment_; }
+    int copies() const { return copy_constructor_ + copy_assignment_; }
+    int constructs() const {
+      return default_constructor_ + copy_constructor_ + move_constructor_;
+    }
+    int destructs() const { return moved_destructor_ + unmoved_destructor_; }
+  };
+  bool moved_{false};
+  inline static OperationTotals TOTALS{};
+  OperationCounter() {
+    ++TOTALS.default_constructor_;
+    moved_ = false;
+  }
+  OperationCounter(OperationCounter&& from) noexcept {
+    ++TOTALS.move_constructor_;
+    moved_ = false;
+    from.moved_ = true;
+  }
+  OperationCounter(const OperationCounter&) { ++TOTALS.copy_constructor_; }
+  OperationCounter& operator=(OperationCounter&& from) noexcept {
+    ++TOTALS.move_assignment_;
+    from.moved_ = true;
+    return *this;
+  }
+  OperationCounter& operator=(const OperationCounter&) {
+    ++TOTALS.copy_assignment_;
+    return *this;
+  }
+  ~OperationCounter() {
+    ++(moved_ ? TOTALS.moved_destructor_ : TOTALS.unmoved_destructor_);
+  }
+};
+
 template<typename Data, typename Alloc = std::allocator<Data>>
 struct TypeHelper {
   typedef typename Data DataType;
@@ -109,6 +152,19 @@ struct SBOVector_ : public ::testing::Test {
   using ContainerType = SBOVector<DataType, SBO_SIZE, AllocatorType>;
 };
 
+struct OperationTrackingSBOVector : public ::testing::Test {
+  using DataType = OperationCounter;
+  using AllocatorType = CountingAllocator<DataType>;
+  using ContainerType = SBOVector<DataType, SBO_SIZE, AllocatorType>;
+  AllocatorType::Totals totals_;
+  AllocatorType create_allocator() { return AllocatorType(&totals_); }
+
+  void SetUp() {
+    memset(&totals_, 0, sizeof(totals_)); 
+    OperationCounter::TOTALS.reset();
+  }
+};
+
 typedef ::testing::Types<
   TypeHelper<Trivial>,
   TypeHelper<Trivial, CustomAllocator<Trivial>>,
@@ -118,10 +174,37 @@ typedef ::testing::Types<
 
 TYPED_TEST_CASE(SBOVector_, GenericTestCases);
 
+template<typename Range1, typename Range2>
+void EXPECT_RANGE_EQ(const Range1& A, const Range2& B) {
+  auto begin1 = A.begin();
+  auto begin2 = B.begin();
+  auto end1 = A.end();
+  auto end2 = B.end();
+  ASSERT_EQ(std::distance(begin1, end1), std::distance(begin2, end2))
+      << "Ranges must be of equal size!\n";
+  auto iter1 = begin1;
+  auto iter2 = begin2;
+  for (; iter1 != end1; ++iter1, ++iter2) {
+    EXPECT_EQ(*iter1, *iter2) << "Element mismatch at position "
+                              << std::distance(begin1, iter1) << "\n";
+  }
+}
+
 TYPED_TEST(SBOVector_, MustDefaultConstruct) {
   ContainerType container{};
   EXPECT_EQ(container.size(), 0);
   EXPECT_TRUE(container.empty());
+}
+
+TEST_F(OperationTrackingSBOVector, MustDefaultConstructWithAllocator) {
+  {
+    ContainerType container{create_allocator()};
+    EXPECT_EQ(container.size(), 0);
+    EXPECT_TRUE(container.empty());
+  }
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(), 0);
+  EXPECT_EQ(totals_.allocs_, 0);
+  EXPECT_EQ(totals_.frees_, 0);
 }
 
 TYPED_TEST(SBOVector_, MustConstructSmallNumberOfCopies) {
@@ -131,6 +214,23 @@ TYPED_TEST(SBOVector_, MustConstructSmallNumberOfCopies) {
   EXPECT_FALSE(container.empty());
 }
 
+TEST_F(OperationTrackingSBOVector, MustConstructSmallNumberOfCopies) {
+  {
+    ContainerType container(SMALL_SIZE, create_allocator());
+    EXPECT_EQ(container.size(), SMALL_SIZE);
+    EXPECT_EQ(container.capacity(), SBO_SIZE);
+    EXPECT_FALSE(container.empty());
+  }
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(), OperationCounter::TOTALS.destructs());
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+}
+
+TEST(SBOVectorOfInts, MustConstructSmallNumberOfCopies) {
+  SBOVector<int, SBO_SIZE> sbo(SMALL_SIZE);
+  std::vector<int> vec(SMALL_SIZE);
+  EXPECT_RANGE_EQ(sbo, vec);
+}
+
 TYPED_TEST(SBOVector_, MustConstructLargeNumberOfCopies) {
   ContainerType container(LARGE_SIZE);
   EXPECT_EQ(container.size(), LARGE_SIZE);
@@ -138,25 +238,54 @@ TYPED_TEST(SBOVector_, MustConstructLargeNumberOfCopies) {
   EXPECT_FALSE(container.empty());
 }
 
-TEST(SBOVectorOfInts, MustNotAllocateOnSmallConstruction) {
-  CountingAllocator<int>::Totals totals{};
-  CountingAllocator<int> alloc(&totals);
-  SBOVector<int, SBO_SIZE, CountingAllocator<int>> container(
-      SMALL_SIZE, alloc);
-  EXPECT_EQ(totals.allocs_, 0);
-}
-
-TEST(SBOVector, MustDeallocateAllAllocatinosOnLargeConstruction) {
-  CountingAllocator<int>::Totals totals{};
-  CountingAllocator<int> alloc(&totals);
+TEST_F(OperationTrackingSBOVector, MustConstructLargeNumberOfCopies) {
   {
-    SBOVector<int, SBO_SIZE, CountingAllocator<int>> container(LARGE_SIZE, alloc);
+    ContainerType container(LARGE_SIZE, create_allocator());
     EXPECT_EQ(container.size(), LARGE_SIZE);
     EXPECT_GE(container.capacity(), LARGE_SIZE);
     EXPECT_FALSE(container.empty());
-    EXPECT_NE(totals.allocs_, 0);
   }
-  EXPECT_EQ(totals.allocs_, totals.frees_);
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+}
+
+TEST(SBOVectorOfInts, MustConstructLargeNumberOfCopies) {
+  SBOVector<int, SBO_SIZE> sbo(LARGE_SIZE);
+  std::vector<int> vec(LARGE_SIZE);
+  EXPECT_RANGE_EQ(sbo, vec);
+}
+
+TYPED_TEST(SBOVector_, MustConstructFromInitializerList) {
+  std::initializer_list<DataType> list{
+      DataType(), DataType(), DataType(), DataType(),
+      DataType(), DataType(), DataType(), DataType(),
+  };
+  ContainerType container(list);
+  EXPECT_EQ(container.size(), list.size());
+  EXPECT_FALSE(container.empty());
+}
+
+TEST_F(OperationTrackingSBOVector, MustConstructFromInitializerList) {
+  {
+    std::initializer_list<DataType> list{
+        DataType(), DataType(), DataType(), DataType(),
+        DataType(), DataType(), DataType(), DataType(),
+    };
+    ContainerType container(list, create_allocator());
+    EXPECT_EQ(container.size(), list.size());
+    EXPECT_FALSE(container.empty());
+  }
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+}
+
+TEST(SBOVectorOfInts, MustConstructFromInitializerList) {
+  std::initializer_list<int> list{1, 45, 6, 3, 5, 8, 19};
+  SBOVector<int, SBO_SIZE> sbo(list);
+  std::vector<int> vec(list);
+  EXPECT_RANGE_EQ(sbo, vec);
 }
 
 TYPED_TEST(SBOVector_, MustIteratorConstructSmallCollection) {
@@ -172,16 +301,6 @@ TYPED_TEST(SBOVector_, MustIteratorConstructLargeCollection) {
   ContainerType container(vec.begin(), vec.end());
   EXPECT_EQ(container.size(), LARGE_SIZE);
   EXPECT_GE(container.capacity(), LARGE_SIZE);
-  EXPECT_FALSE(container.empty());
-}
-
-TYPED_TEST(SBOVector_, MustConstructFromInitializerList) {
-  std::initializer_list<DataType> list{
-      DataType(), DataType(), DataType(), DataType(),
-      DataType(), DataType(), DataType(), DataType(),
-  };
-  ContainerType container(list);
-  EXPECT_EQ(container.size(), list.size());
   EXPECT_FALSE(container.empty());
 }
 
@@ -503,52 +622,6 @@ TYPED_TEST(SBOVector_, MustResize) {
   c.resize(SMALL_SIZE);
   EXPECT_EQ(c.size(), SMALL_SIZE);
 }
-
-
-struct OperationCounter {
-  struct OperationTotals {
-    int default_constructor_{0};
-    int copy_constructor_{0};
-    int move_constructor_{0};
-    int copy_assignment_{0};
-    int move_assignment_{0};
-    int moved_destructor_{0};
-    int unmoved_destructor_{0};
-    void reset() {
-      memset(this, 0, sizeof(this));
-    }
-    int moves() const { return move_constructor_ + move_assignment_; }
-    int copies() const { return copy_constructor_ + copy_assignment_; }
-    int constructs() const {
-      return default_constructor_ + copy_constructor_ + move_constructor_;
-    }
-    int destructs() const { return moved_destructor_ + unmoved_destructor_; }
-  };
-  bool moved_ { false };
-  inline static OperationTotals TOTALS{};
-  OperationCounter() {
-    ++TOTALS.default_constructor_;
-    moved_ = false;
-  }
-  OperationCounter(OperationCounter&& from) noexcept {
-    ++TOTALS.move_constructor_;
-    moved_ = false;
-    from.moved_ = true;
-  }
-  OperationCounter(const OperationCounter&) { ++TOTALS.copy_constructor_; }
-  OperationCounter& operator=(OperationCounter&& from) noexcept {
-    ++TOTALS.move_assignment_;
-    from.moved_ = true;
-    return *this;
-  }
-  OperationCounter& operator=(const OperationCounter&) {
-    ++TOTALS.copy_assignment_;
-    return *this;
-  }
-  ~OperationCounter() {
-    ++(moved_ ? TOTALS.moved_destructor_ : TOTALS.unmoved_destructor_);
-  }
-};
 
 TEST(SBOVectorInternalBuffer, PopBackMustTriggerSingleDestructor) {
   SBOVector<OperationCounter, SBO_SIZE> container(SMALL_SIZE);

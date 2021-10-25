@@ -114,6 +114,55 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     count_ = 0;
   }
 
+  void insert_unninitialized_in_cap(size_t pos, size_t insert_count) {
+    auto new_size = count_ + insert_count;
+    auto uninit_count = std::min(count_ - pos, insert_count);
+    auto assign_count = count_ - (pos + uninit_count);
+    if constexpr (std::is_move_constructible_v<DataType>) {
+      std::uninitialized_move_n(end() - uninit_count, uninit_count, begin() + new_size - uninit_count);
+      std::move_backward(begin() + pos, begin() + pos + assign_count, end() - 1);
+      std::destroy_n(begin() + pos, std::min(insert_count, count_ - pos));
+    } else {
+      std::uninitialized_copy_n(end() - uninit_count, uninit_count, begin() + new_size - uninit_count);
+      std::copy_backward(begin() + pos, begin() + pos + assign_count, end() - 1);
+      std::destroy_n(begin() + pos, std::min(insert_count, count_ - pos));
+    }
+    count_ += insert_count;
+  }
+
+  void insert_unninitialized_with_growth(size_t pos, size_t insert_count) {
+    size_t new_size = count_ + insert_count;
+    DataType* new_buffer = get_allocator().allocate(new_size);
+    // TODO: throw bad_alloc on nullptr if using exceptions
+    if constexpr (std::is_move_constructible_v<DataType>) {
+      std::uninitialized_move_n(begin(), pos, new_buffer);
+      std::uninitialized_move_n(begin() + pos, count_ - pos,
+                                new_buffer + pos + insert_count);
+    } else {
+      std::uninitialized_copy_n(begin(), pos, new_buffer);
+      std::uninitialized_copy_n(begin() + pos, count_ - pos,
+                                new_buffer + pos + insert_count);
+    }
+    clear();
+    count_ = new_size;
+    external_.data_ = new_buffer;
+    external_.capacity_ = new_size;
+  }
+
+  size_t capacity() const {
+    if (count_ <= BufferSize)
+      return BufferSize;
+    return external_.capacity_;
+  }
+
+  void insert_unninitialized(size_t pos, size_t insert_count) {
+    if (count_ + insert_count <= capacity()) {
+      insert_unninitialized_in_cap(pos, insert_count);
+    } else {
+      insert_unninitialized_with_growth(pos, insert_count);
+    }
+  }
+
   void internalize() {
     // Helper function, must be called when decreasing in size such that the count is <= BufferSize but an external buffer still exists
     auto external_ptr_copy = external_.data_;
@@ -371,47 +420,15 @@ class SBOVector {
    template<typename InputIt, typename = std::enable_if_t<details_::is_iterator_v<InputIt>>>
    iterator insert(const_iterator pos, InputIt p_begin, InputIt p_end) {
      size_t out_pos = std::distance(cbegin(), pos);
-     auto shift_count = std::distance(pos, cend());
      auto insert_count = std::distance(p_begin, p_end);
-     if (size() + insert_count <= capacity()) {
-       auto uninit_count = std::min(shift_count, insert_count);
-       auto assign_count = shift_count - uninit_count;
-       auto old_end = end();
-       if constexpr (std::is_move_constructible_v<DataType>) {
-         std::uninitialized_move_n(old_end - uninit_count, uninit_count, old_end);
-         std::move_backward(pos, pos + assign_count, old_end);
-         std::move(p_begin, p_end, begin() + out_pos);
-       } else {
-         std::uninitialized_copy_n(old_end - uninit_count, uninit_count,
-                                   old_end);
-         std::copy_backward(pos, pos + assign_count, old_end);
-         std::copy(p_begin, p_end, begin() + out_pos);
-       }
-       impl_.count_ += insert_count;
+     impl_.insert_unninitialized(out_pos, insert_count);
+     auto out = begin() + out_pos;
+     if constexpr (std::is_move_constructible_v<DataType>) {
+       std::uninitialized_move(p_begin, p_end, out);
      } else {
-       size_t new_size = size() + insert_count;
-       DataType* new_buffer = get_allocator().allocate(new_size);
-       auto preceeding = std::distance(cbegin(), pos);
-       // TODO: throw bad_alloc on nullptr if using exceptions
-       if constexpr (std::is_move_constructible_v<DataType>) {
-         std::uninitialized_move_n(begin(), preceeding, new_buffer);
-         std::uninitialized_move_n(p_begin, insert_count,
-                                   new_buffer + preceeding);
-         std::uninitialized_move_n(pos, size() - preceeding,
-                                   new_buffer + preceeding + insert_count);
-       } else {
-         std::uninitialized_copy_n(begin(), preceeding, new_buffer);
-         std::uninitialized_copy_n(p_begin, insert_count,
-                                   new_buffer + preceeding);
-         std::uninitialized_copy_n(pos, size() - preceeding,
-                                   new_buffer + preceeding + insert_count);
-       }
-       clear();
-       impl_.count_ = new_size;
-       impl_.external_.data_ = new_buffer;
-       impl_.external_.capacity_ = new_size;
+       std::uninitialized_copy(p_begin, p_end, out);
      }
-     return begin() + out_pos;
+     return out;
    }
 
    iterator insert(const_iterator pos, std::initializer_list<DataType> list) {
@@ -419,8 +436,11 @@ class SBOVector {
    }
 
    template <typename... Args>
-   iterator emplace(const_iterator pos, Args&&... args) {
-     return insert(pos, DataType(std::forward<Args>(args)...));
+   iterator emplace(const_iterator ppos, Args&&... args) {
+     size_t pos = std::distance(cbegin(), ppos);
+     impl_.insert_unninitialized(pos, 1);
+     new (begin() + pos) DataType(std::forward<Args>(args)...);
+     return begin() + pos;
    }
 
    iterator erase(const_iterator pos) { 
