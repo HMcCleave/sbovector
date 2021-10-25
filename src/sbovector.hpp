@@ -442,7 +442,7 @@ class SBOVector {
 
    template <typename... Args>
    iterator emplace(const_iterator pos, Args&&... args) {
-     return begin();
+     return insert(pos, DataType(std::forward<Args>(args)...));
    }
 
    iterator erase(const_iterator pos) { 

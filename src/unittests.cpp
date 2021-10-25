@@ -374,6 +374,26 @@ TYPED_TEST(SBOVector_, MustSwapToSmallerContainer) { /*
   EXPECT_EQ(second.size(), SMALL_SIZE);*/
 }
 
+TYPED_TEST(SBOVector_, MustEmplaceValue) {
+  const DataType t{};
+  {  // Small Container
+    ContainerType small(SMALL_SIZE);
+    auto out = small.emplace(small.begin());
+    EXPECT_EQ(out, small.begin());
+    EXPECT_EQ(small.size(), SMALL_SIZE + 1);
+  }
+  {  // Transitioning Container
+    ContainerType full(SBO_SIZE);
+    full.emplace(full.begin());
+    EXPECT_EQ(full.size(), SBO_SIZE + 1);
+  }
+  {  // Large Container
+    ContainerType large(LARGE_SIZE);
+    large.emplace(large.begin());
+    EXPECT_EQ(large.size(), LARGE_SIZE + 1);
+  }
+}
+
 TYPED_TEST(SBOVector_, MustInsertSingleValue) {
   const DataType t{};
   { // Small Container
