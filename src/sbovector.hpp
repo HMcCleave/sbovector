@@ -302,6 +302,11 @@ class SBOVector {
      clear();
    }
 
+   SBOVector& operator=(const SBOVector& other) {
+     assign(other.begin(), other.end());
+     return *this;
+   }
+
    template<int OtherSize, typename AllocatorType>
    SBOVector& operator=(
        const SBOVector<DataType, OtherSize, AllocatorType>& other) {
