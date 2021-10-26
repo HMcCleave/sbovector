@@ -509,7 +509,7 @@ TEST(SBOVectorOfInts, MustMoveConstructAsymetricAllocator) {
   EXPECT_RANGE_EQ(sbo, vec);
 }
 
-TYPED_TEST(SBOVector_, MustIteratorConstructSmallCollection) {
+TYPED_TEST(SBOVector_, MustIteratorConstructSmall) {
   std::vector<DataType> vec(SMALL_SIZE, DataType());
   ContainerType container(vec.begin(), vec.end());
   EXPECT_EQ(container.size(), SMALL_SIZE);
@@ -517,12 +517,50 @@ TYPED_TEST(SBOVector_, MustIteratorConstructSmallCollection) {
   EXPECT_FALSE(container.empty());
 }
 
-TYPED_TEST(SBOVector_, MustIteratorConstructLargeCollection) {
+TEST_F(OperationTrackingSBOVector, MustIteratorConstructSmall) {
+  {
+    std::vector<DataType> vec(SMALL_SIZE, DataType());
+    ContainerType container(vec.begin(), vec.end(), create_allocator());
+    EXPECT_EQ(container.size(), SMALL_SIZE);
+    EXPECT_EQ(container.capacity(), SBO_SIZE);
+    EXPECT_FALSE(container.empty());
+  }
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+}
+
+TEST(SBOVectorOfInts, MustIteratorConstructSmall) {
+  std::vector<int> vec = make_vector_sequence<SMALL_SIZE>();
+  SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
+  EXPECT_RANGE_EQ(sbo, vec);
+}
+
+TYPED_TEST(SBOVector_, MustIteratorConstructLarge) {
   std::vector<DataType> vec(LARGE_SIZE, DataType());
   ContainerType container(vec.begin(), vec.end());
   EXPECT_EQ(container.size(), LARGE_SIZE);
   EXPECT_GE(container.capacity(), LARGE_SIZE);
   EXPECT_FALSE(container.empty());
+}
+
+TEST_F(OperationTrackingSBOVector, MustIteratorConstructLarge) {
+  {
+    std::vector<DataType> vec(LARGE_SIZE, DataType());
+    ContainerType container(vec.begin(), vec.end(), create_allocator());
+    EXPECT_EQ(container.size(), LARGE_SIZE);
+    EXPECT_GE(container.capacity(), LARGE_SIZE);
+    EXPECT_FALSE(container.empty());
+  }
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+}
+
+TEST(SBOVectorOfInts, MustIteratorConstructLarge) {
+  std::vector<int> vec = make_vector_sequence<LARGE_SIZE>();
+  SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
+  EXPECT_RANGE_EQ(sbo, vec);
 }
 
 TYPED_TEST(SBOVector_, MustIterateCorrectNumberOfElementsWithInternalBuffer) {
@@ -552,21 +590,13 @@ TYPED_TEST(SBOVector_, MustIterateCorrectNumberOfElementsWithExternalBuffer) {
 TEST(SBOVectorOfInts, MustIterateOverCorrectValuesWithInternalBuffer) {
   std::vector<int> vec{1, 5, 3, 2, 4};
   SBOVector<int, SBO_SIZE> container{vec.begin(), vec.end()};
-  auto ref_iter = vec.begin();
-  for (auto iter = container.begin(); iter != container.end();
-       ++iter, ++ref_iter) {
-    EXPECT_EQ(*iter, *ref_iter);
-  }
+  EXPECT_RANGE_EQ(container, vec);
 }
 
 TEST(SBOVectorOfInts, MustIterateOverCorrectValuesWithExternalBuffer) {
   std::vector<int> vec{1, 5, 3, 2, 4, 6, 45, 32, 11, -2, 7, 15, 3, 28, 6, 4, 5, 2, 1, 2, 56};
   SBOVector<int, SBO_SIZE> container{vec.begin(), vec.end()};
-  auto ref_iter = vec.begin();
-  for (auto iter = container.begin(); iter != container.end();
-       ++iter, ++ref_iter) {
-    EXPECT_EQ(*iter, *ref_iter);
-  }
+  EXPECT_RANGE_EQ(vec, container);
 }
 
 TYPED_TEST(SBOVector_, PopBackMustReduceSizeWithInternalBuffer) {

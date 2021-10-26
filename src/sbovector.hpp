@@ -308,6 +308,7 @@ class SBOVector {
      assign(other.begin(), other.end());
      return *this;
    }
+
    template<int OtherSize, typename AllocatorType>
    SBOVector& operator=(SBOVector<DataType, OtherSize, AllocatorType>&& that) {
      swap(that);
