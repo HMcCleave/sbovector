@@ -314,6 +314,11 @@ class SBOVector {
      return *this;
    }
 
+   SBOVector& operator=(SBOVector&& that) {
+     swap(that);
+     return *this;
+   }
+
    template<int OtherSize, typename AllocatorType>
    SBOVector& operator=(SBOVector<DataType, OtherSize, AllocatorType>&& that) {
      swap(that);
@@ -555,10 +560,8 @@ class SBOVector {
      } else {
        // TODO this can be optimized considerably
        SBOVector copy_that(that.begin(), that.end(), get_allocator());
-       that.clear();
-       that.insert(that.begin(), begin(), end());
-       clear();
-       insert(begin(), copy_that.begin(), copy_that.end());
+       that = *this;
+       *this = copy_that;
      }
    }
 
@@ -577,6 +580,7 @@ class SBOVector {
            (this_impl.count_ > that_impl.count_ ? that_impl : this_impl);
        auto large_ptr = large_impl.external_.data_;
        auto large_cap = large_impl.external_.capacity_;
+       new (&large_impl.inline_) decltype(large_impl.inline_)();
        if constexpr (std::is_move_constructible_v<DataType>) {
          std::uninitialized_move_n(reinterpret_cast<pointer>(small_impl.inline_.data()), small_impl.count_,
                                    reinterpret_cast<pointer>(large_impl.inline_.data()));
@@ -584,6 +588,8 @@ class SBOVector {
          std::uninitialized_copy_n(reinterpret_cast<pointer>(small_impl.inline_.data()), small_impl.count_,
                                    reinterpret_cast<pointer>(large_impl.inline_.data()));
        }
+       std::destroy_n(reinterpret_cast<pointer>(small_impl.inline_.data()),
+                      small_impl.count_);
        small_impl.external_.data_ = large_ptr;
        small_impl.external_.capacity_ = large_cap;
        std::swap(large_impl.count_, small_impl.count_);
