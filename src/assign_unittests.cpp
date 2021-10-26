@@ -3,7 +3,7 @@
 // Unittests for operator=, assign methods
 TYPED_TEST(SBOVector_, MustCopyAssignSmall) {
   const ContainerType original(SMALL_SIZE);
-  ContainerType copy{};
+  ContainerType copy;
   copy = original;
   EXPECT_EQ(copy.size(), original.size());
 }
@@ -30,7 +30,7 @@ TEST(SBOVectorOfInts, MustCopyAssignSmall) {
 
 TYPED_TEST(SBOVector_, MustCopyAssignLarge) {
   const ContainerType original(LARGE_SIZE);
-  ContainerType copy{};
+  ContainerType copy;
   copy = original;
   EXPECT_EQ(copy.size(), original.size());
 }
@@ -50,14 +50,14 @@ TEST_F(OperationTrackingSBOVector, MustCopyAssignLarge) {
 TEST(SBOVectorOfInts, MustCopyAssignLarge) {
   auto vec = make_vector_sequence<LARGE_SIZE>();
   const SBOVector<int, SBO_SIZE> original(vec.begin(), vec.end());
-  SBOVector<int, SBO_SIZE> copy{};
+  SBOVector<int, SBO_SIZE> copy;
   copy = original;
   EXPECT_RANGE_EQ(copy, vec);
 }
 
 TYPED_TEST(SBOVector_, MustCopyAssignAsymetric) {
   const ContainerType original(LARGE_SIZE);
-  SBOVector<DataType, SMALL_SIZE, AllocatorType> copy{};
+  SBOVector<DataType, SMALL_SIZE, AllocatorType> copy;
   copy = original;
   EXPECT_EQ(original.size(), copy.size());
 }
@@ -77,14 +77,14 @@ TEST_F(OperationTrackingSBOVector, MustCopyAssignAsymmetric) {
 TEST(SBOVectorOfInts, MustCopyAssignAsymmetric) {
   auto vec = make_vector_sequence<LARGE_SIZE>();
   const SBOVector<int, SBO_SIZE> original{vec.begin(), vec.end()};
-  SBOVector<int, SMALL_SIZE, CustomAllocator<int>> copy{};
+  SBOVector<int, SMALL_SIZE, CustomAllocator<int>> copy;
   copy = original;
   EXPECT_RANGE_EQ(copy, vec);
 }
 
 TYPED_TEST(SBOVector_, MustMoveAssignSmall) {
   ContainerType original(SMALL_SIZE);
-  ContainerType copy{};
+  ContainerType copy;
   copy = std::move(original);
   EXPECT_EQ(copy.size(), SMALL_SIZE);
 }
@@ -104,14 +104,14 @@ TEST_F(OperationTrackingSBOVector, MustMoveAssignSmall) {
 TEST(SBOVectorOfInts, MustMoveAssignSmall) {
   auto vec = make_vector_sequence<SMALL_SIZE>();
   SBOVector<int, SBO_SIZE> original(vec.begin(), vec.end());
-  SBOVector<int, SBO_SIZE> copy{};
+  SBOVector<int, SBO_SIZE> copy;
   copy = std::move(original);
   EXPECT_RANGE_EQ(copy, vec);
 }
 
 TYPED_TEST(SBOVector_, MustMoveAssignLarge) {
   ContainerType original(LARGE_SIZE);
-  ContainerType copy{};
+  ContainerType copy;
   copy = std::move(original);
   EXPECT_EQ(copy.size(), LARGE_SIZE);
 }
@@ -131,14 +131,14 @@ TEST_F(OperationTrackingSBOVector, MustMoveAssignLarge) {
 TEST(SBOVectorOfInts, MustMoveAssignLarge) {
   auto vec = make_vector_sequence<LARGE_SIZE>();
   SBOVector<int, SBO_SIZE> original{vec.begin(), vec.end()};
-  SBOVector<int, SBO_SIZE> copy{};
+  SBOVector<int, SBO_SIZE> copy;
   copy = std::move(original);
   EXPECT_RANGE_EQ(copy, vec);
 }
 
 TYPED_TEST(SBOVector_, MustMoveAssignAsymetric) {
   ContainerType original(LARGE_SIZE);
-  SBOVector<DataType, SMALL_SIZE, AllocatorType> copy{};
+  SBOVector<DataType, SMALL_SIZE, AllocatorType> copy;
   copy = std::move(original);
   EXPECT_EQ(LARGE_SIZE, copy.size());
 }
@@ -165,8 +165,8 @@ TEST(SBOVectorOfInts, MustMoveAssignAsymmetric) {
 
 TYPED_TEST(SBOVector_, MustAssignFromInitializerList) {
   std::initializer_list<DataType> il{DataType(), DataType(), DataType()};
-  ContainerType operated{};
-  ContainerType methoded{};
+  ContainerType operated;
+  ContainerType methoded;
   operated = il;
   methoded.assign(il);
   EXPECT_EQ(operated.size(), il.size());
@@ -190,8 +190,8 @@ TEST_F(OperationTrackingSBOVector, MustAssignFromInitializerList) {
 
 TEST(SBOVectorOfInts, MustAssignFromInitializerList) {
   std::initializer_list<int> il{1, 2, 3, 4, 5};
-  SBOVector<int, SBO_SIZE> operated{};
-  SBOVector<int, SBO_SIZE> methoded{};
+  SBOVector<int, SBO_SIZE> operated;
+  SBOVector<int, SBO_SIZE> methoded;
   operated = il;
   methoded.assign(il);
   EXPECT_RANGE_EQ(operated, il);
@@ -199,27 +199,35 @@ TEST(SBOVectorOfInts, MustAssignFromInitializerList) {
 }
 
 TYPED_TEST(SBOVector_, MustAssignCountOfValues) {
-  ContainerType container{};
-  container.assign(SMALL_SIZE, DataType()); // Small -> Small
+  ContainerType container;
+
+  // inline -> inline
+  container.assign(SMALL_SIZE, DataType());
   EXPECT_EQ(container.size(), SMALL_SIZE);
-  container.assign(LARGE_SIZE, DataType()); // Small -> Large
+
+  // inline -> external
+  container.assign(LARGE_SIZE, DataType());
   EXPECT_EQ(container.size(), LARGE_SIZE);
-  container.assign(LARGE_SIZE * 2, DataType()); // Large -> Large
+
+  // external -> external
+  container.assign(LARGE_SIZE * 2, DataType());
   EXPECT_EQ(container.size(), LARGE_SIZE * 2);
-  container.assign(SMALL_SIZE, DataType()); // Large -> Small
+
+  // external -> inline
+  container.assign(SMALL_SIZE, DataType());
   EXPECT_EQ(container.size(), SMALL_SIZE);
 }
 
 TEST_F(OperationTrackingSBOVector, MustAssignCountOfValues) {
   {
     ContainerType container{create_allocator()};
-    container.assign(SMALL_SIZE, DataType());  // Small -> Small
+    container.assign(SMALL_SIZE, DataType());
     EXPECT_EQ(container.size(), SMALL_SIZE);
-    container.assign(LARGE_SIZE, DataType());  // Small -> Large
+    container.assign(LARGE_SIZE, DataType());
     EXPECT_EQ(container.size(), LARGE_SIZE);
-    container.assign(LARGE_SIZE * 2, DataType());  // Large -> Large
+    container.assign(LARGE_SIZE * 2, DataType());
     EXPECT_EQ(container.size(), LARGE_SIZE * 2);
-    container.assign(SMALL_SIZE, DataType());  // Large -> Small
+    container.assign(SMALL_SIZE, DataType());
     EXPECT_EQ(container.size(), SMALL_SIZE);
   }
   EXPECT_EQ(totals_.allocs_, totals_.frees_);
@@ -228,8 +236,8 @@ TEST_F(OperationTrackingSBOVector, MustAssignCountOfValues) {
 }
 
 TEST(SBOVectorOfInts, MustAssignCountOfValues) {
-  std::vector<int> vec{};
-  SBOVector<int, SBO_SIZE> sbo{};
+  std::vector<int> vec;
+  SBOVector<int, SBO_SIZE> sbo;
 
   vec.assign(SMALL_SIZE, 5);
   sbo.assign(SMALL_SIZE, 5);
@@ -242,4 +250,83 @@ TEST(SBOVectorOfInts, MustAssignCountOfValues) {
   vec.assign(LARGE_SIZE * 2, 11);
   sbo.assign(LARGE_SIZE * 2, 11);
   EXPECT_RANGE_EQ(vec, sbo);
+
+  vec.assign(SMALL_SIZE, 13);
+  sbo.assign(SMALL_SIZE, 13);
+  EXPECT_RANGE_EQ(vec, sbo);
+}
+
+TYPED_TEST(SBOVector_, MustAssignRange) {
+  std::vector<DataType> vec;
+  ContainerType container;
+
+  // inline -> inline
+  vec.assign(SMALL_SIZE, DataType());
+  container.assign(vec.begin(), vec.end());
+  EXPECT_EQ(container.size(), vec.size());
+
+  // inline -> external
+  vec.assign(LARGE_SIZE, DataType());
+  container.assign(vec.begin(), vec.end());
+  EXPECT_EQ(container.size(), vec.size());
+
+  // external -> external
+  vec.assign(LARGE_SIZE * 2, DataType());
+  container.assign(vec.begin(), vec.end());
+  EXPECT_EQ(container.size(), vec.size());
+
+  // external -> inline
+  vec.assign(SMALL_SIZE, DataType());
+  container.assign(vec.begin(), vec.end());
+  EXPECT_EQ(container.size(), vec.size());
+}
+
+TEST_F(OperationTrackingSBOVector, MustAssignRange) {
+  {
+    std::vector<DataType> vec;
+    ContainerType container(create_allocator());
+
+    // inline -> inline
+    vec.assign(SMALL_SIZE, DataType());
+    container.assign(vec.begin(), vec.end());
+    EXPECT_EQ(container.size(), vec.size());
+
+    // inline -> external
+    vec.assign(LARGE_SIZE, DataType());
+    container.assign(vec.begin(), vec.end());
+    EXPECT_EQ(container.size(), vec.size());
+
+    // external -> external
+    vec.assign(LARGE_SIZE * 2, DataType());
+    container.assign(vec.begin(), vec.end());
+    EXPECT_EQ(container.size(), vec.size());
+
+    // external -> inline
+    vec.assign(SMALL_SIZE, DataType());
+    container.assign(vec.begin(), vec.end());
+    EXPECT_EQ(container.size(), vec.size());
+  }
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
+}
+
+TEST(SBOVectorOfInts, MustAssignRange) {
+  auto small_v = make_vector_sequence<SMALL_SIZE>();
+  auto large_v = make_vector_sequence<LARGE_SIZE>();
+  auto really_large_v = make_vector_sequence<LARGE_SIZE * 2>();
+
+  SBOVector<int, SBO_SIZE> container;
+
+  container.assign(small_v.begin(), small_v.end());
+  EXPECT_RANGE_EQ(small_v, container);
+
+  container.assign(large_v.begin(), large_v.end());
+  EXPECT_RANGE_EQ(large_v, container);
+
+  container.assign(really_large_v.begin(), really_large_v.end());
+  EXPECT_RANGE_EQ(really_large_v, container);
+
+  container.assign(small_v.begin(), small_v.end());
+  EXPECT_RANGE_EQ(small_v, container);
 }
