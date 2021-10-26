@@ -197,3 +197,49 @@ TEST(SBOVectorOfInts, MustAssignFromInitializerList) {
   EXPECT_RANGE_EQ(operated, il);
   EXPECT_RANGE_EQ(methoded, il);
 }
+
+TYPED_TEST(SBOVector_, MustAssignCountOfValues) {
+  ContainerType container{};
+  container.assign(SMALL_SIZE, DataType()); // Small -> Small
+  EXPECT_EQ(container.size(), SMALL_SIZE);
+  container.assign(LARGE_SIZE, DataType()); // Small -> Large
+  EXPECT_EQ(container.size(), LARGE_SIZE);
+  container.assign(LARGE_SIZE * 2, DataType()); // Large -> Large
+  EXPECT_EQ(container.size(), LARGE_SIZE * 2);
+  container.assign(SMALL_SIZE, DataType()); // Large -> Small
+  EXPECT_EQ(container.size(), SMALL_SIZE);
+}
+
+TEST_F(OperationTrackingSBOVector, MustAssignCountOfValues) {
+  {
+    ContainerType container{create_allocator()};
+    container.assign(SMALL_SIZE, DataType());  // Small -> Small
+    EXPECT_EQ(container.size(), SMALL_SIZE);
+    container.assign(LARGE_SIZE, DataType());  // Small -> Large
+    EXPECT_EQ(container.size(), LARGE_SIZE);
+    container.assign(LARGE_SIZE * 2, DataType());  // Large -> Large
+    EXPECT_EQ(container.size(), LARGE_SIZE * 2);
+    container.assign(SMALL_SIZE, DataType());  // Large -> Small
+    EXPECT_EQ(container.size(), SMALL_SIZE);
+  }
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
+}
+
+TEST(SBOVectorOfInts, MustAssignCountOfValues) {
+  std::vector<int> vec{};
+  SBOVector<int, SBO_SIZE> sbo{};
+
+  vec.assign(SMALL_SIZE, 5);
+  sbo.assign(SMALL_SIZE, 5);
+  EXPECT_RANGE_EQ(vec, sbo);
+
+  vec.assign(LARGE_SIZE, 7);
+  sbo.assign(LARGE_SIZE, 7);
+  EXPECT_RANGE_EQ(vec, sbo);
+
+  vec.assign(LARGE_SIZE * 2, 11);
+  sbo.assign(LARGE_SIZE * 2, 11);
+  EXPECT_RANGE_EQ(vec, sbo);
+}
