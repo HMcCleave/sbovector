@@ -162,3 +162,38 @@ TEST(SBOVectorOfInts, MustMoveAssignAsymmetric) {
   copy = std::move(original);
   EXPECT_RANGE_EQ(copy, vec);
 }
+
+TYPED_TEST(SBOVector_, MustAssignFromInitializerList) {
+  std::initializer_list<DataType> il{DataType(), DataType(), DataType()};
+  ContainerType operated{};
+  ContainerType methoded{};
+  operated = il;
+  methoded.assign(il);
+  EXPECT_EQ(operated.size(), il.size());
+  EXPECT_EQ(methoded.size(), il.size());
+}
+
+TEST_F(OperationTrackingSBOVector, MustAssignFromInitializerList) {
+  {
+    std::initializer_list<DataType> il{DataType(), DataType(), DataType()};
+    ContainerType operated(create_allocator());
+    ContainerType methoded(create_allocator());
+    operated = il;
+    methoded.assign(il);
+    EXPECT_EQ(operated.size(), il.size());
+    EXPECT_EQ(methoded.size(), il.size());
+  }
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
+}
+
+TEST(SBOVectorOfInts, MustAssignFromInitializerList) {
+  std::initializer_list<int> il{1, 2, 3, 4, 5};
+  SBOVector<int, SBO_SIZE> operated{};
+  SBOVector<int, SBO_SIZE> methoded{};
+  operated = il;
+  methoded.assign(il);
+  EXPECT_RANGE_EQ(operated, il);
+  EXPECT_RANGE_EQ(methoded, il);
+}
