@@ -428,6 +428,86 @@ TEST(SBOVectorOfInts, MustCopyConstructAsymetricAllocator) {
   EXPECT_RANGE_EQ(sbo, vec);
 }
 
+TYPED_TEST(SBOVector_, MustMoveConstructSmall) {
+  ContainerType old(SMALL_SIZE);
+  ContainerType new_(std::move(old));
+  EXPECT_EQ(new_.size(), SMALL_SIZE);
+}
+
+TEST_F(OperationTrackingSBOVector, MustMoveConstructSmall) {
+  {
+    ContainerType old(SMALL_SIZE, create_allocator());
+    ContainerType new_(std::move(old));
+    EXPECT_EQ(new_.size(), SMALL_SIZE);
+  }
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+}
+
+TEST(SBOVectorOfInts, MustMoveConstructSmall) {
+  std::vector<int> vec = make_vector_sequence<SMALL_SIZE>();
+  SBOVector<int, SBO_SIZE> old(vec.begin(), vec.end());
+  SBOVector<int, SBO_SIZE> sbo(std::move(old));
+  EXPECT_RANGE_EQ(sbo, vec);
+}
+
+TYPED_TEST(SBOVector_, MustMoveConstructLarge) {
+  ContainerType old(LARGE_SIZE);
+  ContainerType new_(std::move(old));
+  EXPECT_EQ(new_.size(), LARGE_SIZE);
+}
+
+TEST_F(OperationTrackingSBOVector, MustMoveConstructLarge) {
+  {
+    ContainerType old(LARGE_SIZE, create_allocator());
+    ContainerType new_(std::move(old));
+    EXPECT_EQ(new_.size(), LARGE_SIZE);
+  }
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+}
+
+TEST(SBOVectorOfInts, MustMoveConstructLarge) {
+  std::vector<int> vec = make_vector_sequence<LARGE_SIZE>();
+  SBOVector<int, SBO_SIZE> old(vec.begin(), vec.end());
+  SBOVector<int, SBO_SIZE> sbo(std::move(old));
+  EXPECT_RANGE_EQ(sbo, vec);
+}
+
+TYPED_TEST(SBOVector_, MustMoveConstructAsymetric) {
+  SBOVector<DataType, SBO_SIZE + 10, AllocatorType> old(SBO_SIZE + 5);
+  ContainerType new_(std::move(old));
+  EXPECT_EQ(new_.size(), SBO_SIZE + 5);
+}
+
+TEST_F(OperationTrackingSBOVector, MustMoveConstructAsymetric) {
+  {
+    SBOVector<DataType, SBO_SIZE + 10, AllocatorType> old(
+        SBO_SIZE + 5, create_allocator());
+    ContainerType new_(std::move(old));
+    EXPECT_EQ(new_.size(), SBO_SIZE + 5);
+  }
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+}
+
+TEST(SBOVectorOfInts, MustMoveConstructAsymetric) {
+  std::vector<int> vec = make_vector_sequence<SBO_SIZE + 5>();
+  SBOVector<int, SBO_SIZE + 10> old(vec.begin(), vec.end());
+  SBOVector<int, SBO_SIZE> sbo(std::move(old));
+  EXPECT_RANGE_EQ(sbo, vec);
+}
+
+TEST(SBOVectorOfInts, MustMoveConstructAsymetricAllocator) {
+  std::vector<int> vec = make_vector_sequence<SBO_SIZE + 5>();
+  SBOVector<int, SBO_SIZE + 10, CustomAllocator<int>> old(vec.begin(),
+                                                                vec.end());
+  SBOVector<int, SBO_SIZE> sbo(std::move(old));
+  EXPECT_RANGE_EQ(sbo, vec);
+}
 
 TYPED_TEST(SBOVector_, MustIteratorConstructSmallCollection) {
   std::vector<DataType> vec(SMALL_SIZE, DataType());
@@ -625,13 +705,13 @@ TYPED_TEST(SBOVector_, MustSwapInternalBuffersOfDifferentSize) {
   EXPECT_EQ(second.size(), SMALL_SIZE);
 }
 
-TYPED_TEST(SBOVector_, MustSwapToSmallerContainer) { /*
+TYPED_TEST(SBOVector_, MustSwapToSmallerContainer) { 
   ContainerType first(SMALL_SIZE);
   SBOVector<DataType, SMALL_SIZE - 1, AllocatorType> second(SMALL_SIZE - 2);
   static_assert(SMALL_SIZE > 2);
   first.swap(second);
   EXPECT_EQ(first.size(), SMALL_SIZE - 2);
-  EXPECT_EQ(second.size(), SMALL_SIZE);*/
+  EXPECT_EQ(second.size(), SMALL_SIZE);
 }
 
 TYPED_TEST(SBOVector_, MustEmplaceValue) {

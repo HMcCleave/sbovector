@@ -268,11 +268,11 @@ class SBOVector {
      insert(begin(), p_begin, p_end);
    }
 
-   SBOVector(const SBOVector& copy) : SBOVector(copy.begin(), copy.end(), copy.get_allocator()) {}
+   SBOVector(std::initializer_list<DataType> init_list,
+             const Allocator& alloc = Allocator())
+       : SBOVector(init_list.begin(), init_list.end(), alloc) {}
 
-   SBOVector(SBOVector&& move_from) : SBOVector(move_from.get_allocator()) {
-     swap(move_from);
-   }
+   SBOVector(const SBOVector& copy) : SBOVector(copy.begin(), copy.end(), copy.get_allocator()) {}
 
    template<int OtherSize>
    SBOVector(const SBOVector<DataType, OtherSize, Allocator>& copy)
@@ -280,17 +280,23 @@ class SBOVector {
 
    template<int OtherSize, typename AllocatorType>
    SBOVector(const SBOVector<DataType, OtherSize, AllocatorType>& copy,
-             const Allocator& alloc = Allocator()) : SBOVector(copy.begin(), copy.end(), alloc) {
+             const Allocator& alloc = Allocator()) : SBOVector(copy.begin(), copy.end(), alloc) {}
+
+   SBOVector(SBOVector&& move_from) : SBOVector(move_from.get_allocator()) {
+     swap(move_from);
+   }
+
+   template<int OtherSize>
+   SBOVector(SBOVector<DataType, OtherSize, Allocator>&& move_from)
+     : SBOVector(move_from.get_allocator()) {
+     swap(move_from);
    }
 
    template<int OtherSize, typename AllocatorType>
    SBOVector(SBOVector<DataType, OtherSize, AllocatorType>&& move_from,
              const Allocator& alloc = Allocator()) noexcept : SBOVector(alloc) {
-     this->swap(move_from);
+     swap(move_from);
    }
-
-   SBOVector(std::initializer_list<DataType> init_list, const Allocator& alloc = Allocator()) 
-     : SBOVector(init_list.begin(), init_list.end(), alloc) {}
 
    ~SBOVector() {
      clear();
@@ -299,19 +305,17 @@ class SBOVector {
    template<int OtherSize, typename AllocatorType>
    SBOVector& operator=(
        const SBOVector<DataType, OtherSize, AllocatorType>& other) {
-     decltype(other) temp(other);
-     this->swap(temp);
+     assign(other.begin(), other.end());
      return *this;
    }
    template<int OtherSize, typename AllocatorType>
    SBOVector& operator=(SBOVector<DataType, OtherSize, AllocatorType>&& that) {
-     this->swap(that);
+     swap(that);
      return *this;
    }
 
    SBOVector& operator=(std::initializer_list<DataType> init) {
-     SBOVector temp(list.begin(), list.end(), get_allocator());
-     swap(temp);
+     assign(init.begin(), init.end());
      return *this;
    }
    
@@ -568,11 +572,11 @@ class SBOVector {
        auto large_ptr = large_impl.external_.data_;
        auto large_cap = large_impl.external_.capacity_;
        if constexpr (std::is_move_constructible_v<DataType>) {
-         std::uninitialized_move_n(small_impl.inline_.data(), small_impl.count_,
-                                   large_impl.inline_.data());
+         std::uninitialized_move_n(reinterpret_cast<pointer>(small_impl.inline_.data()), small_impl.count_,
+                                   reinterpret_cast<pointer>(large_impl.inline_.data()));
        } else {
-         std::uninitialized_copy_n(small_impl.inline_.data(), small_impl.count_,
-                                   large_impl.inline_.data());
+         std::uninitialized_copy_n(reinterpret_cast<pointer>(small_impl.inline_.data()), small_impl.count_,
+                                   reinterpret_cast<pointer>(large_impl.inline_.data()));
        }
        small_impl.external_.data_ = large_ptr;
        small_impl.external_.capacity_ = large_cap;
