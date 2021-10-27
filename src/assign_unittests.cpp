@@ -8,7 +8,7 @@ TYPED_TEST(SBOVector_, MustCopyAssignSmall) {
   EXPECT_EQ(copy.size(), original.size());
 }
 
-TEST_F(OperationTrackingSBOVector, MustCopyAssignSmall) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustCopyAssignSmall) {
   {
     const ContainerType original(SMALL_SIZE, create_allocator());
     ContainerType copy(create_allocator());
@@ -35,7 +35,7 @@ TYPED_TEST(SBOVector_, MustCopyAssignLarge) {
   EXPECT_EQ(copy.size(), original.size());
 }
 
-TEST_F(OperationTrackingSBOVector, MustCopyAssignLarge) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustCopyAssignLarge) {
   {
     const ContainerType original(LARGE_SIZE, create_allocator());
     ContainerType copy(create_allocator());
@@ -62,7 +62,7 @@ TYPED_TEST(SBOVector_, MustCopyAssignAsymetric) {
   EXPECT_EQ(original.size(), copy.size());
 }
 
-TEST_F(OperationTrackingSBOVector, MustCopyAssignAsymmetric) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustCopyAssignAsymmetric) {
   {
     const ContainerType original(LARGE_SIZE, create_allocator());
     SBOVector<DataType, SMALL_SIZE, AllocatorType> copy{create_allocator()};
@@ -89,7 +89,7 @@ TYPED_TEST(SBOVector_, MustMoveAssignSmall) {
   EXPECT_EQ(copy.size(), SMALL_SIZE);
 }
 
-TEST_F(OperationTrackingSBOVector, MustMoveAssignSmall) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustMoveAssignSmall) {
   {
     ContainerType original(SMALL_SIZE, create_allocator());
     ContainerType copy(create_allocator());
@@ -116,7 +116,7 @@ TYPED_TEST(SBOVector_, MustMoveAssignLarge) {
   EXPECT_EQ(copy.size(), LARGE_SIZE);
 }
 
-TEST_F(OperationTrackingSBOVector, MustMoveAssignLarge) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustMoveAssignLarge) {
   {
     ContainerType original(LARGE_SIZE, create_allocator());
     ContainerType copy(create_allocator());
@@ -143,7 +143,7 @@ TYPED_TEST(SBOVector_, MustMoveAssignAsymetric) {
   EXPECT_EQ(LARGE_SIZE, copy.size());
 }
 
-TEST_F(OperationTrackingSBOVector, MustMoveAssignAsymmetric) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustMoveAssignAsymmetric) {
   {
     ContainerType original(LARGE_SIZE, create_allocator());
     SBOVector<DataType, SMALL_SIZE, AllocatorType> copy(create_allocator());
@@ -173,7 +173,7 @@ TYPED_TEST(SBOVector_, MustAssignFromInitializerList) {
   EXPECT_EQ(methoded.size(), il.size());
 }
 
-TEST_F(OperationTrackingSBOVector, MustAssignFromInitializerList) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustAssignFromInitializerList) {
   {
     std::initializer_list<DataType> il{DataType(), DataType(), DataType()};
     ContainerType operated(create_allocator());
@@ -218,7 +218,7 @@ TYPED_TEST(SBOVector_, MustAssignCountOfValues) {
   EXPECT_EQ(container.size(), SMALL_SIZE);
 }
 
-TEST_F(OperationTrackingSBOVector, MustAssignCountOfValues) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustAssignCountOfValues) {
   {
     ContainerType container{create_allocator()};
     container.assign(SMALL_SIZE, DataType());
@@ -281,7 +281,7 @@ TYPED_TEST(SBOVector_, MustAssignRange) {
   EXPECT_EQ(container.size(), vec.size());
 }
 
-TEST_F(OperationTrackingSBOVector, MustAssignRange) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustAssignRange) {
   {
     std::vector<DataType> vec;
     ContainerType container(create_allocator());

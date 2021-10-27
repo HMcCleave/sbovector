@@ -8,7 +8,7 @@ TYPED_TEST(SBOVector_, MustDefaultConstruct) {
   EXPECT_TRUE(container.empty());
 }
 
-TEST_F(OperationTrackingSBOVector, MustDefaultConstructWithAllocator) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustDefaultConstructWithAllocator) {
   {
     ContainerType container{create_allocator()};
     EXPECT_EQ(container.size(), 0);
@@ -26,7 +26,7 @@ TYPED_TEST(SBOVector_, MustConstructSmallNumberOfCopies) {
   EXPECT_FALSE(container.empty());
 }
 
-TEST_F(OperationTrackingSBOVector, MustConstructSmallNumberOfCopies) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustConstructSmallNumberOfCopies) {
   {
     ContainerType container(SMALL_SIZE, create_allocator());
     EXPECT_EQ(container.size(), SMALL_SIZE);
@@ -51,7 +51,7 @@ TYPED_TEST(SBOVector_, MustConstructLargeNumberOfCopies) {
   EXPECT_FALSE(container.empty());
 }
 
-TEST_F(OperationTrackingSBOVector, MustConstructLargeNumberOfCopies) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustConstructLargeNumberOfCopies) {
   {
     ContainerType container(LARGE_SIZE, create_allocator());
     EXPECT_EQ(container.size(), LARGE_SIZE);
@@ -79,7 +79,7 @@ TYPED_TEST(SBOVector_, MustConstructFromInitializerList) {
   EXPECT_FALSE(container.empty());
 }
 
-TEST_F(OperationTrackingSBOVector, MustConstructFromInitializerList) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustConstructFromInitializerList) {
   {
     std::initializer_list<DataType> list{
         DataType(), DataType(), DataType(), DataType(),
@@ -107,7 +107,7 @@ TYPED_TEST(SBOVector_, MustConstructFromSmallRange) {
   EXPECT_EQ(container.size(), SMALL_SIZE);
 }
 
-TEST_F(OperationTrackingSBOVector, MustConstructFromSmallRange) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustConstructFromSmallRange) {
   {
     std::vector<DataType> vec(SMALL_SIZE);
     ContainerType container(vec.begin(), vec.end(), create_allocator());
@@ -130,7 +130,7 @@ TYPED_TEST(SBOVector_, MustConstructFromLargeRange) {
   EXPECT_EQ(container.size(), LARGE_SIZE);
 }
 
-TEST_F(OperationTrackingSBOVector, MustConstructFromLargeRange) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustConstructFromLargeRange) {
   {
     std::vector<DataType> vec(LARGE_SIZE);
     ContainerType container(vec.begin(), vec.end(), create_allocator());
@@ -153,7 +153,7 @@ TYPED_TEST(SBOVector_, MustCopyConstructSmall) {
   EXPECT_EQ(new_.size(), SMALL_SIZE);
 }
 
-TEST_F(OperationTrackingSBOVector, MustCopyConstructSmall) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustCopyConstructSmall) {
   {
     const ContainerType old(SMALL_SIZE, create_allocator());
     ContainerType new_(old);
@@ -177,7 +177,7 @@ TYPED_TEST(SBOVector_, MustCopyConstructLarge) {
   EXPECT_EQ(new_.size(), LARGE_SIZE);
 }
 
-TEST_F(OperationTrackingSBOVector, MustCopyConstructLarge) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustCopyConstructLarge) {
   {
     const ContainerType old(LARGE_SIZE, create_allocator());
     ContainerType new_(old);
@@ -201,7 +201,7 @@ TYPED_TEST(SBOVector_, MustCopyConstructAsymetric) {
   EXPECT_EQ(new_.size(), SBO_SIZE + 5);
 }
 
-TEST_F(OperationTrackingSBOVector, MustCopyConstructAsymetric) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustCopyConstructAsymetric) {
   {
     const SBOVector<DataType, SBO_SIZE + 10, AllocatorType> old(
         SBO_SIZE + 5, create_allocator());
@@ -234,7 +234,7 @@ TYPED_TEST(SBOVector_, MustMoveConstructSmall) {
   EXPECT_EQ(new_.size(), SMALL_SIZE);
 }
 
-TEST_F(OperationTrackingSBOVector, MustMoveConstructSmall) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustMoveConstructSmall) {
   {
     ContainerType old(SMALL_SIZE, create_allocator());
     ContainerType new_(std::move(old));
@@ -258,7 +258,7 @@ TYPED_TEST(SBOVector_, MustMoveConstructLarge) {
   EXPECT_EQ(new_.size(), LARGE_SIZE);
 }
 
-TEST_F(OperationTrackingSBOVector, MustMoveConstructLarge) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustMoveConstructLarge) {
   {
     ContainerType old(LARGE_SIZE, create_allocator());
     ContainerType new_(std::move(old));
@@ -282,7 +282,7 @@ TYPED_TEST(SBOVector_, MustMoveConstructAsymetric) {
   EXPECT_EQ(new_.size(), SBO_SIZE + 5);
 }
 
-TEST_F(OperationTrackingSBOVector, MustMoveConstructAsymetric) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustMoveConstructAsymetric) {
   {
     SBOVector<DataType, SBO_SIZE + 10, AllocatorType> old(SBO_SIZE + 5,
                                                           create_allocator());
@@ -317,7 +317,7 @@ TYPED_TEST(SBOVector_, MustIteratorConstructSmall) {
   EXPECT_FALSE(container.empty());
 }
 
-TEST_F(OperationTrackingSBOVector, MustIteratorConstructSmall) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustIteratorConstructSmall) {
   {
     std::vector<DataType> vec(SMALL_SIZE, DataType());
     ContainerType container(vec.begin(), vec.end(), create_allocator());
@@ -344,7 +344,7 @@ TYPED_TEST(SBOVector_, MustIteratorConstructLarge) {
   EXPECT_FALSE(container.empty());
 }
 
-TEST_F(OperationTrackingSBOVector, MustIteratorConstructLarge) {
+TEST_F(DataTypeOperationTrackingSBOVector, MustIteratorConstructLarge) {
   {
     std::vector<DataType> vec(LARGE_SIZE, DataType());
     ContainerType container(vec.begin(), vec.end(), create_allocator());

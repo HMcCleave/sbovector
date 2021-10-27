@@ -144,7 +144,7 @@ struct SBOVector_ : public ::testing::Test {
   using ContainerType = SBOVector<DataType, SBO_SIZE, AllocatorType>;
 };
 
-struct OperationTrackingSBOVector : public ::testing::Test {
+struct DataTypeOperationTrackingSBOVector : public ::testing::Test {
   using DataType = OperationCounter;
   using AllocatorType = CountingAllocator<DataType>;
   using ContainerType = SBOVector<DataType, SBO_SIZE, AllocatorType>;
