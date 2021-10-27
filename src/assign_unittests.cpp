@@ -1,166 +1,146 @@
 #include "unittest_common.hpp"
 
 // Unittests for operator=, assign methods
-TYPED_TEST(SBOVector_, MustCopyAssignSmall) {
-  const ContainerType original(SMALL_SIZE);
-  ContainerType copy;
-  copy = original;
-  EXPECT_EQ(copy.size(), original.size());
-}
-
-TEST_F(DataTypeOperationTrackingSBOVector, MustCopyAssignSmall) {
+TYPED_TEST(SBOVector_, MustCopyAssign) {
   {
-    const ContainerType original(SMALL_SIZE, create_allocator());
-    ContainerType copy(create_allocator());
+    const ContainerType original(SMALL_SIZE);
+    ContainerType copy;
     copy = original;
     EXPECT_EQ(copy.size(), original.size());
   }
-  EXPECT_EQ(totals_.allocs_, totals_.frees_);
-  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
-            OperationCounter::TOTALS.destructs());
-}
-
-TEST(ValueVerifiedSBOVector, MustCopyAssignSmall) {
-  auto vec = make_vector_sequence<SMALL_SIZE>();
-  const SBOVector<int, SBO_SIZE> original{vec.begin(), vec.end()};
-  SBOVector<int, SBO_SIZE> copy{};
-  copy = original;
-  EXPECT_RANGE_EQ(copy, vec);
-}
-
-TYPED_TEST(SBOVector_, MustCopyAssignLarge) {
-  const ContainerType original(LARGE_SIZE);
-  ContainerType copy;
-  copy = original;
-  EXPECT_EQ(copy.size(), original.size());
-}
-
-TEST_F(DataTypeOperationTrackingSBOVector, MustCopyAssignLarge) {
   {
-    const ContainerType original(LARGE_SIZE, create_allocator());
-    ContainerType copy(create_allocator());
+    const ContainerType original(LARGE_SIZE);
+    ContainerType copy;
     copy = original;
     EXPECT_EQ(copy.size(), original.size());
   }
-  EXPECT_EQ(totals_.allocs_, totals_.frees_);
-  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
-            OperationCounter::TOTALS.destructs());
-}
-
-TEST(ValueVerifiedSBOVector, MustCopyAssignLarge) {
-  auto vec = make_vector_sequence<LARGE_SIZE>();
-  const SBOVector<int, SBO_SIZE> original(vec.begin(), vec.end());
-  SBOVector<int, SBO_SIZE> copy;
-  copy = original;
-  EXPECT_RANGE_EQ(copy, vec);
-}
-
-TYPED_TEST(SBOVector_, MustCopyAssignAsymetric) {
-  const ContainerType original(LARGE_SIZE);
-  SBOVector<DataType, SMALL_SIZE, AllocatorType> copy;
-  copy = original;
-  EXPECT_EQ(original.size(), copy.size());
-}
-
-TEST_F(DataTypeOperationTrackingSBOVector, MustCopyAssignAsymmetric) {
   {
-    const ContainerType original(LARGE_SIZE, create_allocator());
-    SBOVector<DataType, SMALL_SIZE, AllocatorType> copy{create_allocator()};
+    const ContainerType original(LARGE_SIZE);
+    SBOVector<DataType, SMALL_SIZE, AllocatorType> copy;
     copy = original;
     EXPECT_EQ(original.size(), copy.size());
   }
+}
+
+TEST_F(DataTypeOperationTrackingSBOVector, MustCopyAssign) {
+  {
+    {
+      const ContainerType original(SMALL_SIZE, create_allocator());
+      ContainerType copy(create_allocator());
+      copy = original;
+      EXPECT_EQ(copy.size(), original.size());
+    }
+    {
+      const ContainerType original(LARGE_SIZE, create_allocator());
+      ContainerType copy(create_allocator());
+      copy = original;
+      EXPECT_EQ(copy.size(), original.size());
+    }
+    {
+      const ContainerType original(LARGE_SIZE, create_allocator());
+      SBOVector<DataType, SMALL_SIZE, AllocatorType> copy{create_allocator()};
+      copy = original;
+      EXPECT_EQ(original.size(), copy.size());
+    }
+  }
   EXPECT_EQ(totals_.allocs_, totals_.frees_);
   EXPECT_EQ(OperationCounter::TOTALS.constructs(),
             OperationCounter::TOTALS.destructs());
 }
 
-TEST(ValueVerifiedSBOVector, MustCopyAssignAsymmetric) {
-  auto vec = make_vector_sequence<LARGE_SIZE>();
-  const SBOVector<int, SBO_SIZE> original{vec.begin(), vec.end()};
-  SBOVector<int, SMALL_SIZE, CustomAllocator<int>> copy;
-  copy = original;
-  EXPECT_RANGE_EQ(copy, vec);
-}
-
-TYPED_TEST(SBOVector_, MustMoveAssignSmall) {
-  ContainerType original(SMALL_SIZE);
-  ContainerType copy;
-  copy = std::move(original);
-  EXPECT_EQ(copy.size(), SMALL_SIZE);
-}
-
-TEST_F(DataTypeOperationTrackingSBOVector, MustMoveAssignSmall) {
+TEST(ValueVerifiedSBOVector, MustCopyAssign) {
   {
-    ContainerType original(SMALL_SIZE, create_allocator());
-    ContainerType copy(create_allocator());
+    auto vec = make_vector_sequence<SMALL_SIZE>();
+    const SBOVector<int, SBO_SIZE> original{vec.begin(), vec.end()};
+    SBOVector<int, SBO_SIZE> copy{};
+    copy = original;
+    EXPECT_RANGE_EQ(copy, vec);
+  }
+  {
+    auto vec = make_vector_sequence<LARGE_SIZE>();
+    const SBOVector<int, SBO_SIZE> original(vec.begin(), vec.end());
+    SBOVector<int, SBO_SIZE> copy;
+    copy = original;
+    EXPECT_RANGE_EQ(copy, vec);
+  }
+  {
+    auto vec = make_vector_sequence<LARGE_SIZE>();
+    const SBOVector<int, SBO_SIZE> original{vec.begin(), vec.end()};
+    SBOVector<int, SMALL_SIZE, CustomAllocator<int>> copy;
+    copy = original;
+    EXPECT_RANGE_EQ(copy, vec);
+  }
+}
+
+TYPED_TEST(SBOVector_, MustMoveAssign) {
+  {
+    ContainerType original(SMALL_SIZE);
+    ContainerType copy;
     copy = std::move(original);
     EXPECT_EQ(copy.size(), SMALL_SIZE);
   }
-  EXPECT_EQ(totals_.allocs_, totals_.frees_);
-  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
-            OperationCounter::TOTALS.destructs());
-}
-
-TEST(ValueVerifiedSBOVector, MustMoveAssignSmall) {
-  auto vec = make_vector_sequence<SMALL_SIZE>();
-  SBOVector<int, SBO_SIZE> original(vec.begin(), vec.end());
-  SBOVector<int, SBO_SIZE> copy;
-  copy = std::move(original);
-  EXPECT_RANGE_EQ(copy, vec);
-}
-
-TYPED_TEST(SBOVector_, MustMoveAssignLarge) {
-  ContainerType original(LARGE_SIZE);
-  ContainerType copy;
-  copy = std::move(original);
-  EXPECT_EQ(copy.size(), LARGE_SIZE);
-}
-
-TEST_F(DataTypeOperationTrackingSBOVector, MustMoveAssignLarge) {
   {
-    ContainerType original(LARGE_SIZE, create_allocator());
-    ContainerType copy(create_allocator());
+    ContainerType original(LARGE_SIZE);
+    ContainerType copy;
     copy = std::move(original);
     EXPECT_EQ(copy.size(), LARGE_SIZE);
   }
-  EXPECT_EQ(totals_.allocs_, totals_.frees_);
-  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
-            OperationCounter::TOTALS.destructs());
-}
-
-TEST(ValueVerifiedSBOVector, MustMoveAssignLarge) {
-  auto vec = make_vector_sequence<LARGE_SIZE>();
-  SBOVector<int, SBO_SIZE> original{vec.begin(), vec.end()};
-  SBOVector<int, SBO_SIZE> copy;
-  copy = std::move(original);
-  EXPECT_RANGE_EQ(copy, vec);
-}
-
-TYPED_TEST(SBOVector_, MustMoveAssignAsymetric) {
-  ContainerType original(LARGE_SIZE);
-  SBOVector<DataType, SMALL_SIZE, AllocatorType> copy;
-  copy = std::move(original);
-  EXPECT_EQ(LARGE_SIZE, copy.size());
-}
-
-TEST_F(DataTypeOperationTrackingSBOVector, MustMoveAssignAsymmetric) {
   {
-    ContainerType original(LARGE_SIZE, create_allocator());
-    SBOVector<DataType, SMALL_SIZE, AllocatorType> copy(create_allocator());
+    ContainerType original(LARGE_SIZE);
+    SBOVector<DataType, SMALL_SIZE, AllocatorType> copy;
     copy = std::move(original);
     EXPECT_EQ(LARGE_SIZE, copy.size());
+  }
+}
+
+TEST_F(DataTypeOperationTrackingSBOVector, MustMoveAssign) {
+  if constexpr (!std::is_same_v<DataType, NoMove>) {
+    {
+      ContainerType original(SMALL_SIZE, create_allocator());
+      ContainerType copy(create_allocator());
+      copy = std::move(original);
+      EXPECT_EQ(copy.size(), SMALL_SIZE);
+    }
+    {
+      ContainerType original(LARGE_SIZE, create_allocator());
+      ContainerType copy(create_allocator());
+      copy = std::move(original);
+      EXPECT_EQ(copy.size(), LARGE_SIZE);
+    }
+    {
+      ContainerType original(LARGE_SIZE, create_allocator());
+      SBOVector<DataType, SMALL_SIZE, AllocatorType> copy(create_allocator());
+      copy = std::move(original);
+      EXPECT_EQ(LARGE_SIZE, copy.size());
+    }
   }
   EXPECT_EQ(totals_.allocs_, totals_.frees_);
   EXPECT_EQ(OperationCounter::TOTALS.constructs(),
             OperationCounter::TOTALS.destructs());
 }
 
-TEST(ValueVerifiedSBOVector, MustMoveAssignAsymmetric) {
-  auto vec = make_vector_sequence<LARGE_SIZE>();
-  SBOVector<int, SBO_SIZE> original(vec.begin(), vec.end());
-  SBOVector<int, SMALL_SIZE, CustomAllocator<int>> copy{};
-  copy = std::move(original);
-  EXPECT_RANGE_EQ(copy, vec);
+TEST(ValueVerifiedSBOVector, MustMoveAssign) {
+  {
+    auto vec = make_vector_sequence<SMALL_SIZE>();
+    SBOVector<int, SBO_SIZE> original(vec.begin(), vec.end());
+    SBOVector<int, SBO_SIZE> copy;
+    copy = std::move(original);
+    EXPECT_RANGE_EQ(copy, vec);
+  }
+  {
+    auto vec = make_vector_sequence<LARGE_SIZE>();
+    SBOVector<int, SBO_SIZE> original{vec.begin(), vec.end()};
+    SBOVector<int, SBO_SIZE> copy;
+    copy = std::move(original);
+    EXPECT_RANGE_EQ(copy, vec);
+  }
+  {
+    auto vec = make_vector_sequence<LARGE_SIZE>();
+    SBOVector<int, SBO_SIZE> original(vec.begin(), vec.end());
+    SBOVector<int, SMALL_SIZE, CustomAllocator<int>> copy{};
+    copy = std::move(original);
+    EXPECT_RANGE_EQ(copy, vec);
+  }
 }
 
 TYPED_TEST(SBOVector_, MustAssignFromInitializerList) {
