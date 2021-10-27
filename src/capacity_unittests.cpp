@@ -8,30 +8,29 @@ TYPED_TEST(SBOVector_, MustReserveIfExternal) {
   EXPECT_EQ(container.capacity(), LARGE_SIZE * 2);
 }
 
+TEST_F(DataTypeOperationTrackingSBOVector, MustReserveIfExternal) {
+  {
+    ContainerType container(LARGE_SIZE, create_allocator());
+    container.reserve_if_external(LARGE_SIZE * 2);
+  }
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
+}
+
 TYPED_TEST(SBOVector_, MustShrinkToFitIfExternal) {
   ContainerType container(LARGE_SIZE);
   container.reserve_if_external(LARGE_SIZE * 2);
   container.shrink_to_fit_if_external();
   EXPECT_EQ(container.size(), container.capacity());
 }
-
-TEST(SBOVectorReserve, MustMatchAlloc_Free) {
-  CountingAllocator<OperationCounter>::Totals alloc_totals{};
+TEST_F(DataTypeOperationTrackingSBOVector, MustShrinkToFitIfExternal) {
   {
-    SBOVector<OperationCounter, SBO_SIZE, CountingAllocator<OperationCounter>>
-        container(LARGE_SIZE, {&alloc_totals});
-    container.reserve_if_external(LARGE_SIZE * 2);
-  }
-  EXPECT_EQ(alloc_totals.allocs_, alloc_totals.frees_);
-}
-
-TEST(SBOVectorShrinkToFit, MustMatchAlloc_Free) {
-  CountingAllocator<OperationCounter>::Totals alloc_totals{};
-  {
-    SBOVector<OperationCounter, SBO_SIZE, CountingAllocator<OperationCounter>>
-        container(LARGE_SIZE, {&alloc_totals});
+    ContainerType container(LARGE_SIZE, create_allocator());
     container.reserve_if_external(LARGE_SIZE * 2);
     container.shrink_to_fit_if_external();
   }
-  EXPECT_EQ(alloc_totals.allocs_, alloc_totals.frees_);
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
 }
