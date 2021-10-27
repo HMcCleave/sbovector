@@ -181,20 +181,20 @@ void EXPECT_RANGE_EQ(const Range1& A, const Range2& B) {
   }
 }
 
-template <int... Values>
+template <size_t... Values>
 constexpr std::vector<int> vector_from_sequence() {
   return std::vector<int>{Values...};
 }
 
 template <int... Values>
 constexpr std::vector<int> vector_from_sequence(
-    std::integer_sequence<int, Values...>) {
-  return vector_from_sequence();
+    std::integer_sequence<size_t, Values...>) {
+  return vector_from_sequence<Values...>();
 }
 
 template <size_t V>
 constexpr std::vector<int> make_vector_sequence() {
-  return vector_from_sequence(std::make_integer_sequence<int, (int)V>());
+  return vector_from_sequence(std::make_index_sequence<V>());
 }
 
 #endif  // UNITTEST_COMMON_HPP
