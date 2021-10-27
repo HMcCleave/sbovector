@@ -382,9 +382,20 @@ class SBOVector {
    const_iterator end() const noexcept { return cbegin() + size(); }
    const_iterator cend() const noexcept { return end(); }
 
+   reverse_iterator rbegin() noexcept {
+     return std::make_reverse_iterator(end());
+   }
+   const_reverse_iterator rbegin() const noexcept {
+     return std::make_reverse_iterator(cend());
+   }
+   const_reverse_iterator crbegin() const noexcept { return rbegin(); }
+   reverse_iterator rend() noexcept { return rbegin() + size(); }
+   const_reverse_iterator rend() const noexcept { return rbegin() + size(); }
+   const_reverse_iterator crend() const noexcept { return crbegin() + size(); }
+
    bool empty() const noexcept { return 0 == size(); }
    size_t size() const noexcept { return impl_.count_; }
-   size_t max_size() const noexcept { return 0; }
+   size_t max_size() const noexcept { return std::allocator_traits<Allocator>::max_size(); }
    void reserve_if_external(size_t requested_capacity) {
      if (requested_capacity <= capacity() || size() <= BufferSize)
        return;

@@ -6,6 +6,7 @@
 #include "sbovector.hpp"
 
 #include <memory>
+#include <vector>
 
 constexpr size_t SMALL_SIZE = 5;
 constexpr size_t LARGE_SIZE = 100;

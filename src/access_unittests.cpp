@@ -1,6 +1,6 @@
 #include "unittest_common.hpp"
 
-// Unittests for iteration (begin/end and variations there-of), at, data, size, operator[] methods
+// Unittests for iteration (begin/end and variations there-of), at, front/back data, size, operator[] methods
 
 TYPED_TEST(SBOVector_, MustIterateViaMutableBeginEnd) {
   size_t count{0};
@@ -21,15 +21,15 @@ TEST(ValueVerifiedSBOVector, MustIterateViaMutableBeginEnd) {
   std::vector<int> vec = make_vector_sequence<SMALL_SIZE>();
   SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
   int count = 0;
-  for (int* iter = sbo.begin(); iter != sbo.end(); ++iter) {
-    EXPECT_EQ(*iter, vec[count++]);
+  for (int* iter = sbo.begin(); iter != sbo.end(); ++iter, ++count) {
+    EXPECT_EQ(*iter, vec[count]);
   }
   EXPECT_EQ(count, SMALL_SIZE);
   count = 0;
   vec = make_vector_sequence<LARGE_SIZE>();
   sbo.assign(vec.begin(), vec.end());
-  for (int* iter = sbo.begin(); iter != sbo.end(); ++iter) {
-    EXPECT_EQ(*iter, vec[count++]);
+  for (int* iter = sbo.begin(); iter != sbo.end(); ++iter, ++count) {
+    EXPECT_EQ(*iter, vec[count]);
   }
   EXPECT_EQ(count, LARGE_SIZE);
 }
@@ -96,6 +96,102 @@ TEST(ValueVerifiedSBOVector, MustIterateViaCBeginCEnd) {
   EXPECT_EQ(count, LARGE_SIZE);
 }
 
+TYPED_TEST(SBOVector_, MustIterateViaMutableRBeginREnd) {
+  size_t count{0};
+  auto null_op = [&](DataType&) { ++count; };
+  ContainerType container(SMALL_SIZE);
+  for (auto iter = container.rbegin(); iter != container.rend(); ++iter)
+    null_op(*iter);
+  EXPECT_EQ(count, SMALL_SIZE);
+  count = 0;
+  container.resize(LARGE_SIZE);
+  for (auto iter = container.rbegin(); iter != container.rend(); ++iter) {
+    null_op(*iter);
+  }
+  EXPECT_EQ(count, LARGE_SIZE);
+}
+
+TEST(ValueVerifiedSBOVector, MustIterateViaMutableRBeginREnd) {
+  std::vector<int> vec = make_vector_sequence<SMALL_SIZE>();
+  SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
+  int count = 0;
+  for (auto iter = sbo.rbegin(); iter != sbo.rend(); ++iter, ++count) {
+    EXPECT_EQ(*iter, *(vec.rbegin() + count));
+  }
+  EXPECT_EQ(count, SMALL_SIZE);
+  count = 0;
+  vec = make_vector_sequence<LARGE_SIZE>();
+  sbo.assign(vec.begin(), vec.end());
+  for (auto iter = sbo.rbegin(); iter != sbo.rend(); ++iter, ++count) {
+    EXPECT_EQ(*iter, *(vec.rbegin() + count));
+  }
+  EXPECT_EQ(count, LARGE_SIZE);
+}
+
+TYPED_TEST(SBOVector_, MustIterateViaConstRBeginREnd) {
+  size_t count{0};
+  auto null_op = [&](const DataType&) { ++count; };
+  const ContainerType small(SMALL_SIZE), large(LARGE_SIZE);
+  for (auto iter = small.rbegin(); iter != small.rend(); ++iter)
+    null_op(*iter);
+  EXPECT_EQ(count, SMALL_SIZE);
+  count = 0;
+  for (auto iter = large.rbegin(); iter != large.rend(); ++iter)
+    null_op(*iter);
+  EXPECT_EQ(count, LARGE_SIZE);
+}
+
+TEST(ValueVerifiedSBOVector, MustIterateViaConstRBeginREnd) {
+  std::vector<int> vec = make_vector_sequence<SMALL_SIZE>();
+  const SBOVector<int, SBO_SIZE> sbo_small(vec.begin(), vec.end());
+  int count = 0;
+  for (auto iter = sbo_small.rbegin(); iter != sbo_small.rend();
+       ++iter, ++count) {
+    EXPECT_EQ(*iter, *(vec.rbegin() + count));
+  }
+  EXPECT_EQ(count, SMALL_SIZE);
+  count = 0;
+  vec = make_vector_sequence<LARGE_SIZE>();
+  const SBOVector<int, SBO_SIZE> sbo_large(vec.begin(), vec.end());
+  for (auto iter = sbo_large.rbegin(); iter != sbo_large.rend();
+       ++iter, ++count) {
+    EXPECT_EQ(*iter, *(vec.rbegin() + count));
+  }
+  EXPECT_EQ(count, LARGE_SIZE);
+}
+
+TYPED_TEST(SBOVector_, MustIterateViaCRBeginCREnd) {
+  size_t count{0};
+  auto null_op = [&](const DataType&) { ++count; };
+  const ContainerType small(SMALL_SIZE), large(LARGE_SIZE);
+  for (auto iter = small.crbegin(); iter != small.crend(); ++iter)
+    null_op(*iter);
+  EXPECT_EQ(count, SMALL_SIZE);
+  count = 0;
+  for (auto iter = large.crbegin(); iter != large.crend(); ++iter)
+    null_op(*iter);
+  EXPECT_EQ(count, LARGE_SIZE);
+}
+
+TEST(ValueVerifiedSBOVector, MustIterateViaCRBeginCREnd) {
+  std::vector<int> vec = make_vector_sequence<SMALL_SIZE>();
+  const SBOVector<int, SBO_SIZE> sbo_small(vec.begin(), vec.end());
+  int count = 0;
+  for (auto iter = sbo_small.crbegin(); iter != sbo_small.crend();
+       ++iter, ++count) {
+    EXPECT_EQ(*iter, *(vec.rbegin() + count));
+  }
+  EXPECT_EQ(count, SMALL_SIZE);
+  count = 0;
+  vec = make_vector_sequence<LARGE_SIZE>();
+  const SBOVector<int, SBO_SIZE> sbo_large(vec.begin(), vec.end());
+  for (auto iter = sbo_large.crbegin(); iter != sbo_large.crend();
+       ++iter, ++count) {
+    EXPECT_EQ(*iter, *(vec.rbegin() + count));
+  }
+  EXPECT_EQ(count, LARGE_SIZE);
+}
+
 TEST(ValueVerifiedSBOVector, MustAccessViaAt) {
   std::vector<int> vec = make_vector_sequence<SMALL_SIZE>();
   SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
@@ -133,6 +229,30 @@ TEST(ValueVerifiedSBOVector, MustAccessViaData) {
   for (int i = 0; i < vec.size(); ++i) {
     EXPECT_EQ(vec.data()[i], sbo.data()[i]);
   }
+}
+
+TEST(ValueVerifiedSBOVector, MustAccessViaCData) {
+  std::vector<int> vec = make_vector_sequence<SMALL_SIZE>();
+  SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
+  for (int i = 0; i < vec.size(); ++i) {
+    EXPECT_EQ(vec.data()[i], sbo.cdata()[i]);
+  }
+  vec = make_vector_sequence<LARGE_SIZE>();
+  sbo.assign(vec.begin(), vec.end());
+  for (int i = 0; i < vec.size(); ++i) {
+    EXPECT_EQ(vec.data()[i], sbo.cdata()[i]);
+  }
+}
+
+TEST(ValueVerifiedSBOVector, MustAccessViaFrontAndBack) {
+  std::vector<int> vec = make_vector_sequence<SMALL_SIZE>();
+  SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
+  EXPECT_EQ(vec.front(), sbo.front());
+  EXPECT_EQ(vec.back(), sbo.back());
+  vec = make_vector_sequence<LARGE_SIZE>();
+  sbo.assign(vec.begin(), vec.end());
+  EXPECT_EQ(vec.front(), sbo.front());
+  EXPECT_EQ(vec.back(), sbo.back());
 }
 
 TYPED_TEST(SBOVector_, MustReportSize) {
