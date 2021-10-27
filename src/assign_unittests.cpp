@@ -20,7 +20,7 @@ TEST_F(OperationTrackingSBOVector, MustCopyAssignSmall) {
             OperationCounter::TOTALS.destructs());
 }
 
-TEST(SBOVectorOfInts, MustCopyAssignSmall) {
+TEST(ValueVerifiedSBOVector, MustCopyAssignSmall) {
   auto vec = make_vector_sequence<SMALL_SIZE>();
   const SBOVector<int, SBO_SIZE> original{vec.begin(), vec.end()};
   SBOVector<int, SBO_SIZE> copy{};
@@ -47,7 +47,7 @@ TEST_F(OperationTrackingSBOVector, MustCopyAssignLarge) {
             OperationCounter::TOTALS.destructs());
 }
 
-TEST(SBOVectorOfInts, MustCopyAssignLarge) {
+TEST(ValueVerifiedSBOVector, MustCopyAssignLarge) {
   auto vec = make_vector_sequence<LARGE_SIZE>();
   const SBOVector<int, SBO_SIZE> original(vec.begin(), vec.end());
   SBOVector<int, SBO_SIZE> copy;
@@ -74,7 +74,7 @@ TEST_F(OperationTrackingSBOVector, MustCopyAssignAsymmetric) {
             OperationCounter::TOTALS.destructs());
 }
 
-TEST(SBOVectorOfInts, MustCopyAssignAsymmetric) {
+TEST(ValueVerifiedSBOVector, MustCopyAssignAsymmetric) {
   auto vec = make_vector_sequence<LARGE_SIZE>();
   const SBOVector<int, SBO_SIZE> original{vec.begin(), vec.end()};
   SBOVector<int, SMALL_SIZE, CustomAllocator<int>> copy;
@@ -101,7 +101,7 @@ TEST_F(OperationTrackingSBOVector, MustMoveAssignSmall) {
             OperationCounter::TOTALS.destructs());
 }
 
-TEST(SBOVectorOfInts, MustMoveAssignSmall) {
+TEST(ValueVerifiedSBOVector, MustMoveAssignSmall) {
   auto vec = make_vector_sequence<SMALL_SIZE>();
   SBOVector<int, SBO_SIZE> original(vec.begin(), vec.end());
   SBOVector<int, SBO_SIZE> copy;
@@ -128,7 +128,7 @@ TEST_F(OperationTrackingSBOVector, MustMoveAssignLarge) {
             OperationCounter::TOTALS.destructs());
 }
 
-TEST(SBOVectorOfInts, MustMoveAssignLarge) {
+TEST(ValueVerifiedSBOVector, MustMoveAssignLarge) {
   auto vec = make_vector_sequence<LARGE_SIZE>();
   SBOVector<int, SBO_SIZE> original{vec.begin(), vec.end()};
   SBOVector<int, SBO_SIZE> copy;
@@ -155,7 +155,7 @@ TEST_F(OperationTrackingSBOVector, MustMoveAssignAsymmetric) {
             OperationCounter::TOTALS.destructs());
 }
 
-TEST(SBOVectorOfInts, MustMoveAssignAsymmetric) {
+TEST(ValueVerifiedSBOVector, MustMoveAssignAsymmetric) {
   auto vec = make_vector_sequence<LARGE_SIZE>();
   SBOVector<int, SBO_SIZE> original(vec.begin(), vec.end());
   SBOVector<int, SMALL_SIZE, CustomAllocator<int>> copy{};
@@ -188,7 +188,7 @@ TEST_F(OperationTrackingSBOVector, MustAssignFromInitializerList) {
             OperationCounter::TOTALS.destructs());
 }
 
-TEST(SBOVectorOfInts, MustAssignFromInitializerList) {
+TEST(ValueVerifiedSBOVector, MustAssignFromInitializerList) {
   std::initializer_list<int> il{1, 2, 3, 4, 5};
   SBOVector<int, SBO_SIZE> operated;
   SBOVector<int, SBO_SIZE> methoded;
@@ -235,7 +235,7 @@ TEST_F(OperationTrackingSBOVector, MustAssignCountOfValues) {
             OperationCounter::TOTALS.destructs());
 }
 
-TEST(SBOVectorOfInts, MustAssignCountOfValues) {
+TEST(ValueVerifiedSBOVector, MustAssignCountOfValues) {
   std::vector<int> vec;
   SBOVector<int, SBO_SIZE> sbo;
 
@@ -311,7 +311,7 @@ TEST_F(OperationTrackingSBOVector, MustAssignRange) {
             OperationCounter::TOTALS.destructs());
 }
 
-TEST(SBOVectorOfInts, MustAssignRange) {
+TEST(ValueVerifiedSBOVector, MustAssignRange) {
   auto small_v = make_vector_sequence<SMALL_SIZE>();
   auto large_v = make_vector_sequence<LARGE_SIZE>();
   auto really_large_v = make_vector_sequence<LARGE_SIZE * 2>();

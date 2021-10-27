@@ -38,7 +38,7 @@ TEST_F(OperationTrackingSBOVector, MustConstructSmallNumberOfCopies) {
   EXPECT_EQ(totals_.allocs_, totals_.frees_);
 }
 
-TEST(SBOVectorOfInts, MustConstructSmallNumberOfCopies) {
+TEST(ValueVerifiedSBOVector, MustConstructSmallNumberOfCopies) {
   SBOVector<int, SBO_SIZE> sbo(SMALL_SIZE);
   std::vector<int> vec(SMALL_SIZE);
   EXPECT_RANGE_EQ(sbo, vec);
@@ -63,7 +63,7 @@ TEST_F(OperationTrackingSBOVector, MustConstructLargeNumberOfCopies) {
   EXPECT_EQ(totals_.allocs_, totals_.frees_);
 }
 
-TEST(SBOVectorOfInts, MustConstructLargeNumberOfCopies) {
+TEST(ValueVerifiedSBOVector, MustConstructLargeNumberOfCopies) {
   SBOVector<int, SBO_SIZE> sbo(LARGE_SIZE);
   std::vector<int> vec(LARGE_SIZE);
   EXPECT_RANGE_EQ(sbo, vec);
@@ -94,7 +94,7 @@ TEST_F(OperationTrackingSBOVector, MustConstructFromInitializerList) {
   EXPECT_EQ(totals_.allocs_, totals_.frees_);
 }
 
-TEST(SBOVectorOfInts, MustConstructFromInitializerList) {
+TEST(ValueVerifiedSBOVector, MustConstructFromInitializerList) {
   std::initializer_list<int> list{1, 45, 6, 3, 5, 8, 19};
   SBOVector<int, SBO_SIZE> sbo(list);
   std::vector<int> vec(list);
@@ -118,7 +118,7 @@ TEST_F(OperationTrackingSBOVector, MustConstructFromSmallRange) {
   EXPECT_EQ(totals_.allocs_, totals_.frees_);
 }
 
-TEST(SBOVectorOfInts, MustConstructFromSmallRange) {
+TEST(ValueVerifiedSBOVector, MustConstructFromSmallRange) {
   std::vector<int> vec = make_vector_sequence<SMALL_SIZE>();
   SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
   EXPECT_RANGE_EQ(sbo, vec);
@@ -141,7 +141,7 @@ TEST_F(OperationTrackingSBOVector, MustConstructFromLargeRange) {
   EXPECT_EQ(totals_.allocs_, totals_.frees_);
 }
 
-TEST(SBOVectorOfInts, MustConstructFromLargeRange) {
+TEST(ValueVerifiedSBOVector, MustConstructFromLargeRange) {
   std::vector<int> vec = make_vector_sequence<LARGE_SIZE>();
   SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
   EXPECT_RANGE_EQ(sbo, vec);
@@ -164,7 +164,7 @@ TEST_F(OperationTrackingSBOVector, MustCopyConstructSmall) {
   EXPECT_EQ(totals_.allocs_, totals_.frees_);
 }
 
-TEST(SBOVectorOfInts, MustCopyConstructSmall) {
+TEST(ValueVerifiedSBOVector, MustCopyConstructSmall) {
   std::vector<int> vec = make_vector_sequence<SMALL_SIZE>();
   const SBOVector<int, SBO_SIZE> old(vec.begin(), vec.end());
   SBOVector<int, SBO_SIZE> sbo(old);
@@ -188,7 +188,7 @@ TEST_F(OperationTrackingSBOVector, MustCopyConstructLarge) {
   EXPECT_EQ(totals_.allocs_, totals_.frees_);
 }
 
-TEST(SBOVectorOfInts, MustCopyConstructLarge) {
+TEST(ValueVerifiedSBOVector, MustCopyConstructLarge) {
   std::vector<int> vec = make_vector_sequence<LARGE_SIZE>();
   const SBOVector<int, SBO_SIZE> old(vec.begin(), vec.end());
   SBOVector<int, SBO_SIZE> sbo(old);
@@ -213,14 +213,14 @@ TEST_F(OperationTrackingSBOVector, MustCopyConstructAsymetric) {
   EXPECT_EQ(totals_.allocs_, totals_.frees_);
 }
 
-TEST(SBOVectorOfInts, MustCopyConstructAsymetric) {
+TEST(ValueVerifiedSBOVector, MustCopyConstructAsymetric) {
   std::vector<int> vec = make_vector_sequence<SBO_SIZE + 5>();
   const SBOVector<int, SBO_SIZE + 10> old(vec.begin(), vec.end());
   SBOVector<int, SBO_SIZE> sbo(old);
   EXPECT_RANGE_EQ(sbo, vec);
 }
 
-TEST(SBOVectorOfInts, MustCopyConstructAsymetricAllocator) {
+TEST(ValueVerifiedSBOVector, MustCopyConstructAsymetricAllocator) {
   std::vector<int> vec = make_vector_sequence<SBO_SIZE + 5>();
   const SBOVector<int, SBO_SIZE + 10, CustomAllocator<int>> old(vec.begin(),
                                                                 vec.end());
@@ -245,7 +245,7 @@ TEST_F(OperationTrackingSBOVector, MustMoveConstructSmall) {
   EXPECT_EQ(totals_.allocs_, totals_.frees_);
 }
 
-TEST(SBOVectorOfInts, MustMoveConstructSmall) {
+TEST(ValueVerifiedSBOVector, MustMoveConstructSmall) {
   std::vector<int> vec = make_vector_sequence<SMALL_SIZE>();
   SBOVector<int, SBO_SIZE> old(vec.begin(), vec.end());
   SBOVector<int, SBO_SIZE> sbo(std::move(old));
@@ -269,7 +269,7 @@ TEST_F(OperationTrackingSBOVector, MustMoveConstructLarge) {
   EXPECT_EQ(totals_.allocs_, totals_.frees_);
 }
 
-TEST(SBOVectorOfInts, MustMoveConstructLarge) {
+TEST(ValueVerifiedSBOVector, MustMoveConstructLarge) {
   std::vector<int> vec = make_vector_sequence<LARGE_SIZE>();
   SBOVector<int, SBO_SIZE> old(vec.begin(), vec.end());
   SBOVector<int, SBO_SIZE> sbo(std::move(old));
@@ -294,14 +294,14 @@ TEST_F(OperationTrackingSBOVector, MustMoveConstructAsymetric) {
   EXPECT_EQ(totals_.allocs_, totals_.frees_);
 }
 
-TEST(SBOVectorOfInts, MustMoveConstructAsymetric) {
+TEST(ValueVerifiedSBOVector, MustMoveConstructAsymetric) {
   std::vector<int> vec = make_vector_sequence<SBO_SIZE + 5>();
   SBOVector<int, SBO_SIZE + 10> old(vec.begin(), vec.end());
   SBOVector<int, SBO_SIZE> sbo(std::move(old));
   EXPECT_RANGE_EQ(sbo, vec);
 }
 
-TEST(SBOVectorOfInts, MustMoveConstructAsymetricAllocator) {
+TEST(ValueVerifiedSBOVector, MustMoveConstructAsymetricAllocator) {
   std::vector<int> vec = make_vector_sequence<SBO_SIZE + 5>();
   SBOVector<int, SBO_SIZE + 10, CustomAllocator<int>> old(vec.begin(),
                                                           vec.end());
@@ -330,7 +330,7 @@ TEST_F(OperationTrackingSBOVector, MustIteratorConstructSmall) {
   EXPECT_EQ(totals_.allocs_, totals_.frees_);
 }
 
-TEST(SBOVectorOfInts, MustIteratorConstructSmall) {
+TEST(ValueVerifiedSBOVector, MustIteratorConstructSmall) {
   std::vector<int> vec = make_vector_sequence<SMALL_SIZE>();
   SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
   EXPECT_RANGE_EQ(sbo, vec);
@@ -357,7 +357,7 @@ TEST_F(OperationTrackingSBOVector, MustIteratorConstructLarge) {
   EXPECT_EQ(totals_.allocs_, totals_.frees_);
 }
 
-TEST(SBOVectorOfInts, MustIteratorConstructLarge) {
+TEST(ValueVerifiedSBOVector, MustIteratorConstructLarge) {
   std::vector<int> vec = make_vector_sequence<LARGE_SIZE>();
   SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
   EXPECT_RANGE_EQ(sbo, vec);

@@ -638,7 +638,6 @@ class SBOVector {
      std::swap(this_impl.external_.capacity_, that_impl.external_.capacity_);
    }
 
-   template<typename OtherData, size_t OtherSize, typename OtherAllocator>
    friend class SBOVector;
 };
 

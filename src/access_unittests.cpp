@@ -26,13 +26,13 @@ TYPED_TEST(SBOVector_, MustIterateCorrectNumberOfElementsWithExternalBuffer) {
   EXPECT_EQ(LARGE_SIZE, iter_size);
 }
 
-TEST(SBOVectorOfInts, MustIterateOverCorrectValuesWithInternalBuffer) {
+TEST(ValueVerifiedSBOVector, MustIterateOverCorrectValuesWithInternalBuffer) {
   std::vector<int> vec{1, 5, 3, 2, 4};
   SBOVector<int, SBO_SIZE> container{vec.begin(), vec.end()};
   EXPECT_RANGE_EQ(container, vec);
 }
 
-TEST(SBOVectorOfInts, MustIterateOverCorrectValuesWithExternalBuffer) {
+TEST(ValueVerifiedSBOVector, MustIterateOverCorrectValuesWithExternalBuffer) {
   std::vector<int> vec{1,  5, 3,  2, 4, 6, 45, 32, 11, -2, 7,
                        15, 3, 28, 6, 4, 5, 2,  1,  2,  56};
   SBOVector<int, SBO_SIZE> container{vec.begin(), vec.end()};
