@@ -445,16 +445,19 @@ class SBOVector {
 
    template<typename InputIt, typename = std::enable_if_t<details_::is_iterator_v<InputIt>>>
    iterator insert(const_iterator pos, InputIt p_begin, InputIt p_end) {
-     size_t out_pos = std::distance(cbegin(), pos);
-     auto insert_count = std::distance(p_begin, p_end);
-     impl_.insert_unninitialized(out_pos, insert_count);
-     auto out = begin() + out_pos;
-     if constexpr (std::is_move_constructible_v<DataType>) {
-       std::uninitialized_move(p_begin, p_end, out);
-     } else {
-       std::uninitialized_copy(p_begin, p_end, out);
+     SBOVector temp(get_allocator());
+     for (auto iter = cbegin(); iter != pos; ++iter) {
+       temp.push_back(*iter);
      }
-     return out;
+     for (auto iter = p_begin; iter != p_end; ++iter) {
+       temp.push_back(*iter);
+     }
+     for (auto iter = pos; iter != cend(); ++iter) {
+       temp.push_back(*iter);
+     }
+     auto dist = std::distance(cbegin(), pos);
+     swap(temp);
+     return begin() + dist;
    }
 
    iterator insert(const_iterator pos, std::initializer_list<DataType> list) {
@@ -464,8 +467,15 @@ class SBOVector {
    template <typename... Args>
    iterator emplace(const_iterator ppos, Args&&... args) {
      size_t pos = std::distance(cbegin(), ppos);
-     impl_.insert_unninitialized(pos, 1);
-     new (begin() + pos) DataType(std::forward<Args>(args)...);
+     SBOVector temp(get_allocator());
+     for (auto iter = cbegin(); iter != ppos; ++iter) {
+       temp.push_back(*iter);
+     }
+     temp.emplace_back(std::forward<Args>(args)...);
+     for (auto iter = ppos; iter != cend(); ++iter) {
+       temp.push_back(*iter);
+     }
+     swap(temp);
      return begin() + pos;
    }
 
@@ -524,7 +534,7 @@ class SBOVector {
    }
 
    void resize(size_t count) {
-     DataType value;
+     DataType value{};
      resize(count, value);
    }
    void resize(size_t count, const DataType& v) {
