@@ -6,6 +6,7 @@
 #include "sbovector.hpp"
 
 #include <memory>
+#include <mutex>
 #include <vector>
 
 constexpr size_t SMALL_SIZE = 5;
@@ -91,6 +92,7 @@ class NoCopy {
 
 struct OperationCounter {
   struct OperationTotals {
+    std::mutex mutex_{};
     int default_constructor_{0};
     int copy_constructor_{0};
     int move_constructor_{0};
@@ -98,7 +100,15 @@ struct OperationCounter {
     int move_assignment_{0};
     int moved_destructor_{0};
     int unmoved_destructor_{0};
-    void reset() { memset(this, 0, sizeof(this)); }
+    void reset() {
+      default_constructor_ = 0;
+      copy_constructor_ = 0;
+      move_constructor_ = 0;
+      copy_assignment_ = 0;
+      move_assignment_ = 0;
+      moved_destructor_ = 0;
+      unmoved_destructor_ = 0;
+    }
     int moves() const { return move_constructor_ + move_assignment_; }
     int copies() const { return copy_constructor_ + copy_assignment_; }
     int constructs() const {
@@ -153,8 +163,13 @@ struct DataTypeOperationTrackingSBOVector : public ::testing::Test {
   AllocatorType create_allocator() { return AllocatorType(&totals_); }
 
   void SetUp() {
+    OperationCounter::TOTALS.mutex_.lock();
     memset(&totals_, 0, sizeof(totals_));
     OperationCounter::TOTALS.reset();
+  }
+
+  void TearDown() { 
+    OperationCounter::TOTALS.mutex_.unlock();
   }
 };
 
