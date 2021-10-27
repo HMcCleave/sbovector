@@ -2,55 +2,170 @@
 
 // Unittests for swap methods
 
-TYPED_TEST(SBOVector_, MustSwapWithEmptyContainer) {
-  ContainerType first;
-  ContainerType second(SMALL_SIZE);
-  ContainerType third(LARGE_SIZE);
-  first.swap(second);
-  second.swap(third);
-  EXPECT_EQ(third.size(), 0);
-  EXPECT_EQ(second.size(), LARGE_SIZE);
-  EXPECT_EQ(first.size(), SMALL_SIZE);
+TYPED_TEST(SBOVector_, MustSwap) {
+  { 
+    ContainerType a;
+    ContainerType b(SMALL_SIZE);
+    ContainerType c(LARGE_SIZE);
+    b.swap(a); // empty <> inline
+    EXPECT_EQ(b.size(), 0);
+    c.swap(b); // empty <> external
+    EXPECT_EQ(a.size(), SMALL_SIZE);
+    EXPECT_EQ(b.size(), LARGE_SIZE);
+    EXPECT_EQ(c.size(), 0);
+    a.swap(b); // inline <> external
+  }
 }
 
-TYPED_TEST(SBOVector_, MustSwapInternalBuffers) {
-  ContainerType first(SMALL_SIZE);
-  ContainerType second(SMALL_SIZE + 1);
-  first.swap(second);
-  EXPECT_EQ(first.size(), SMALL_SIZE + 1);
-  EXPECT_EQ(second.size(), SMALL_SIZE);
+TEST_F(DataTypeOperationTrackingSBOVector, MustSwap) {
+  { 
+    ContainerType a(create_allocator());
+    ContainerType b(SMALL_SIZE, create_allocator());
+    ContainerType c(LARGE_SIZE, create_allocator());
+    b.swap(a); // empty <> inline
+    EXPECT_EQ(b.size(), 0);
+    c.swap(b); // empty <> external
+    EXPECT_EQ(a.size(), SMALL_SIZE);
+    EXPECT_EQ(b.size(), LARGE_SIZE);
+    EXPECT_EQ(c.size(), 0);
+    a.swap(b); // inline <> external
+  }
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
 }
 
-TYPED_TEST(SBOVector_, MustSwapExternalBuffers) {
-  ContainerType first(LARGE_SIZE);
-  ContainerType second(LARGE_SIZE + 1);
-  second.swap(first);
-  EXPECT_EQ(first.size(), LARGE_SIZE + 1);
-  EXPECT_EQ(second.size(), LARGE_SIZE);
+TEST(ValueVerifiedSBOVector, MustSwap) {
+  { // empty <> inline
+    auto vec = make_vector_sequence<SMALL_SIZE>();
+    SBOVector<int, SBO_SIZE> a{}, b(vec.begin(), vec.end());
+    a.swap(b); 
+    EXPECT_RANGE_EQ(a, vec);
+  }
+  {  // empty <> external
+    auto vec = make_vector_sequence<LARGE_SIZE>();
+    SBOVector<int, SBO_SIZE> a{}, b(vec.begin(), vec.end());
+    a.swap(b);
+    EXPECT_RANGE_EQ(a, vec);
+  }
+  {  // inline <> external
+    auto avec = make_vector_sequence<LARGE_SIZE>();
+    auto bvec = make_vector_sequence<SMALL_SIZE>();
+    SBOVector<int, SBO_SIZE> a(avec.begin(), avec.end()), b(bvec.begin(), bvec.end());
+    a.swap(b);
+    EXPECT_RANGE_EQ(a, bvec);
+    EXPECT_RANGE_EQ(b, avec);
+  }
 }
 
-TYPED_TEST(SBOVector_, MustSwapInternalAndExternalBuffer) {
-  ContainerType first(SMALL_SIZE);
-  ContainerType second(LARGE_SIZE);
-  first.swap(second);
-  EXPECT_EQ(first.size(), LARGE_SIZE);
-  EXPECT_EQ(second.size(), SMALL_SIZE);
+TYPED_TEST(SBOVector_, MustSwapAsymmetric) {
+  { // inline to insufficient inline
+    ContainerType a(SBO_SIZE);
+    SBOVector<DataType, SMALL_SIZE, AllocatorType> b(SMALL_SIZE);
+    a.swap(b);
+    EXPECT_EQ(a.size(), SMALL_SIZE);
+    EXPECT_EQ(b.size(), SBO_SIZE);
+  }
+  { // external to sufficent inline
+    ContainerType a(SBO_SIZE);
+    SBOVector<DataType, SMALL_SIZE, AllocatorType> b(SBO_SIZE);
+    a.swap(b);
+    EXPECT_EQ(a.size(), SBO_SIZE);
+    EXPECT_EQ(b.size(), SBO_SIZE);
+  }
+  { // external to external
+    ContainerType a(LARGE_SIZE);
+    SBOVector<DataType, SMALL_SIZE, AllocatorType> b(LARGE_SIZE);
+    a.swap(b);
+    EXPECT_EQ(a.size(), LARGE_SIZE);
+    EXPECT_EQ(b.size(), LARGE_SIZE);
+  }
 }
 
-TYPED_TEST(SBOVector_, MustSwapInternalBuffersOfDifferentSize) {
-  ContainerType first(SMALL_SIZE);
-  SBOVector<DataType, SBO_SIZE + 10, AllocatorType> second(SMALL_SIZE + 1);
-  static_assert(SBO_SIZE >= SMALL_SIZE + 1);
-  first.swap(second);
-  EXPECT_EQ(first.size(), SMALL_SIZE + 1);
-  EXPECT_EQ(second.size(), SMALL_SIZE);
+TEST_F(DataTypeOperationTrackingSBOVector, MustSwapAsymmetric) {
+  {
+    {  // inline to insufficient inline
+      ContainerType a(SBO_SIZE, create_allocator());
+      SBOVector<DataType, SMALL_SIZE, AllocatorType> b(SMALL_SIZE,
+                                                       create_allocator());
+      a.swap(b);
+      EXPECT_EQ(a.size(), SMALL_SIZE);
+      EXPECT_EQ(b.size(), SBO_SIZE);
+    }
+    {  // external to sufficent inline
+      ContainerType a(SBO_SIZE, create_allocator());
+      SBOVector<DataType, SMALL_SIZE, AllocatorType> b(SBO_SIZE,
+                                                       create_allocator());
+      a.swap(b);
+      EXPECT_EQ(a.size(), SBO_SIZE);
+      EXPECT_EQ(b.size(), SBO_SIZE);
+    }
+    {  // external to external
+      ContainerType a(LARGE_SIZE, create_allocator());
+      SBOVector<DataType, SMALL_SIZE, AllocatorType> b(LARGE_SIZE,
+                                                       create_allocator());
+      a.swap(b);
+      EXPECT_EQ(a.size(), LARGE_SIZE);
+      EXPECT_EQ(b.size(), LARGE_SIZE);
+    }
+  }
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
 }
 
-TYPED_TEST(SBOVector_, MustSwapToSmallerContainer) { 
-  ContainerType first(SMALL_SIZE);
-  SBOVector<DataType, SMALL_SIZE - 1, AllocatorType> second(SMALL_SIZE - 2);
-  static_assert(SMALL_SIZE > 2);
-  first.swap(second);
-  EXPECT_EQ(first.size(), SMALL_SIZE - 2);
-  EXPECT_EQ(second.size(), SMALL_SIZE);
+TEST(ValueVerifiedSBOVector, MustSwapAsymmetric) {
+  auto small_vec = make_vector_sequence<SMALL_SIZE>();
+  auto sbos_vec = make_vector_sequence<SBO_SIZE>();
+  auto large_vec = make_vector_sequence<LARGE_SIZE>();
+  {  // inline to insufficient inline
+    SBOVector<int, SBO_SIZE> a(sbos_vec.begin(), sbos_vec.end());
+    SBOVector<int, SMALL_SIZE> b(small_vec.begin(), small_vec.end());
+    a.swap(b);
+    EXPECT_RANGE_EQ(a, small_vec);
+    EXPECT_RANGE_EQ(b, sbos_vec);
+  }
+  {  // external to sufficent inline
+    SBOVector<int, SBO_SIZE> a(sbos_vec.begin(), sbos_vec.end());
+    SBOVector<int, SMALL_SIZE> b(sbos_vec.begin(), sbos_vec.end());
+    a.swap(b);
+    EXPECT_RANGE_EQ(a, sbos_vec);
+    EXPECT_RANGE_EQ(b, sbos_vec);
+  }
+  {  // external to external
+    SBOVector<int, SBO_SIZE> a(large_vec.begin(), large_vec.end());
+    SBOVector<int, SMALL_SIZE> b(large_vec.begin(), large_vec.end());
+    a.swap(b);
+    EXPECT_RANGE_EQ(a, large_vec);
+    EXPECT_RANGE_EQ(b, large_vec);
+  }
+}
+
+TEST_F(DataTypeOperationTrackingSBOVector, MustSwapAsymmetricAllocators) {
+  {
+    {  // inline to insufficient inline
+      ContainerType a(SBO_SIZE, create_allocator());
+      SBOVector<DataType, SMALL_SIZE> b(SMALL_SIZE);
+      a.swap(b);
+      EXPECT_EQ(a.size(), SMALL_SIZE);
+      EXPECT_EQ(b.size(), SBO_SIZE);
+    }
+    {  // external to sufficent inline
+      ContainerType a(SBO_SIZE, create_allocator());
+      SBOVector<DataType, SMALL_SIZE> b(SBO_SIZE);
+      a.swap(b);
+      EXPECT_EQ(a.size(), SBO_SIZE);
+      EXPECT_EQ(b.size(), SBO_SIZE);
+    }
+    {  // external to external
+      ContainerType a(LARGE_SIZE, create_allocator());
+      SBOVector<DataType, SMALL_SIZE> b(LARGE_SIZE);
+      a.swap(b);
+      EXPECT_EQ(a.size(), LARGE_SIZE);
+      EXPECT_EQ(b.size(), LARGE_SIZE);
+    }
+  }
+  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
+            OperationCounter::TOTALS.destructs());
 }
