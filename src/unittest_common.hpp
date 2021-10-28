@@ -25,17 +25,18 @@ struct CountingAllocator {
   using value_type = T;
   using pointer = T*;
   using const_pointer = const T*;
+  using aligned_t = std::aligned_storage_t<sizeof(T), alignof(T)>;
 
   CountingAllocator(Totals* totals) : totals_(totals) {}
 
   pointer allocate(size_t n, const void*) { return allocate(n); }
   pointer allocate(size_t n) {
     ++totals_->allocs_;
-    return new T[n];
+    return reinterpret_cast<pointer>(new aligned_t[n]);
   }
   void deallocate(pointer p, size_t n) {
     ++totals_->frees_;
-    delete[] p;
+    delete[] reinterpret_cast<aligned_t*>(p);
   }
 };
 
@@ -100,6 +101,9 @@ struct OperationCounter {
     int move_assignment_{0};
     int moved_destructor_{0};
     int unmoved_destructor_{0};
+    int use_after_move_{0};
+    int uninitialized_use_{0};
+    int uninitialized_desctruct_{0};
     void reset() {
       default_constructor_ = 0;
       copy_constructor_ = 0;
@@ -108,6 +112,9 @@ struct OperationCounter {
       move_assignment_ = 0;
       moved_destructor_ = 0;
       unmoved_destructor_ = 0;
+      use_after_move_ = 0;
+      uninitialized_use_ = 0;
+      uninitialized_desctruct_ = 0;
     }
     int moves() const { return move_constructor_ + move_assignment_; }
     int copies() const { return copy_constructor_ + copy_assignment_; }
@@ -116,30 +123,70 @@ struct OperationCounter {
     }
     int destructs() const { return moved_destructor_ + unmoved_destructor_; }
   };
-  bool moved_{false};
+  bool moved_;
+  bool constructed_;
   inline static OperationTotals TOTALS{};
   OperationCounter() {
     ++TOTALS.default_constructor_;
     moved_ = false;
+    constructed_ = true;
   }
+
   OperationCounter(OperationCounter&& from) noexcept {
+    from.Use();
     ++TOTALS.move_constructor_;
     moved_ = false;
+    constructed_ = true;
     from.moved_ = true;
   }
-  OperationCounter(const OperationCounter&) { ++TOTALS.copy_constructor_; }
+
+  OperationCounter(const OperationCounter& copy) { 
+    copy.Use();
+    moved_ = false;
+    constructed_ = true;
+    ++TOTALS.copy_constructor_;
+  }
+
   OperationCounter& operator=(OperationCounter&& from) noexcept {
+    if (!constructed_) {
+      on_uninit_use();
+    }
     ++TOTALS.move_assignment_;
+    moved_ = from.moved_;
     from.moved_ = true;
     return *this;
   }
-  OperationCounter& operator=(const OperationCounter&) {
+
+  OperationCounter& operator=(const OperationCounter& copy) {
+    if (!constructed_) {
+      on_uninit_use();
+    }
+    moved_ = copy.moved_;
     ++TOTALS.copy_assignment_;
     return *this;
   }
+
   ~OperationCounter() {
     ++(moved_ ? TOTALS.moved_destructor_ : TOTALS.unmoved_destructor_);
+    if (!constructed_) {
+      on_uninit_destruct();
+    }
+    constructed_ = false;
   }
+
+  void Use() const {
+    if (!constructed_) {
+      on_uninit_use();
+    }
+    if (moved_) {
+      on_use_after_move();
+    }
+  }
+
+  // Increment counter wrappers for errors (unified location for ease of debugging hook)
+  inline void on_uninit_use() const { ++TOTALS.uninitialized_use_; }
+  inline void on_use_after_move() const { ++TOTALS.use_after_move_; }
+  inline void on_uninit_destruct() const { ++TOTALS.uninitialized_desctruct_; }
 };
 
 template <typename Data, typename Alloc = std::allocator<Data>>
@@ -169,7 +216,20 @@ struct DataTypeOperationTrackingSBOVector : public ::testing::Test {
   }
 
   void TearDown() { 
+    EXPECT_EQ(totals_.allocs_, totals_.frees_);
+    auto& op_totals = OperationCounter::TOTALS;
+    EXPECT_EQ(op_totals.constructs(), op_totals.destructs());
+    EXPECT_EQ(op_totals.uninitialized_use_, 0);
+    EXPECT_EQ(op_totals.use_after_move_, 0);
+    EXPECT_EQ(op_totals.uninitialized_desctruct_, 0);
     OperationCounter::TOTALS.mutex_.unlock();
+  }
+
+  template<typename ContainerType_p>
+  void UseElements(const ContainerType_p& container) {
+    for (const auto& elem : container) {
+      elem.Use();
+    }
   }
 };
 
@@ -177,9 +237,21 @@ typedef ::testing::Types<TypeHelper<Trivial>,
                          TypeHelper<Trivial, CustomAllocator<Trivial>>,
                          TypeHelper<NonTrivial>,
                          TypeHelper<NoMove>>
+    OldGenericTestCases;
+
+typedef ::testing::Types<TypeHelper<Trivial>,
+                         TypeHelper<Trivial, CustomAllocator<Trivial>>,
+                         TypeHelper<NonTrivial>,
+                         TypeHelper<NoMove>,
+                         TypeHelper<NoCopy>>
     GenericTestCases;
 
+template<typename T>
+using SBOVector_1 = SBOVector_<T>;
+
+
 TYPED_TEST_CASE(SBOVector_, GenericTestCases);
+TYPED_TEST_CASE(SBOVector_1, OldGenericTestCases);
 
 template <typename Range1, typename Range2>
 void EXPECT_RANGE_EQ(const Range1& A, const Range2& B) {

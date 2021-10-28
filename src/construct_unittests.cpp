@@ -2,24 +2,19 @@
 
 // Unit tests for the various Constructors of SBOVector
 
-TYPED_TEST(SBOVector_, MustDefaultConstruct) {
+TYPED_TEST(SBOVector_1, MustDefaultConstruct) {
   ContainerType container{};
   EXPECT_EQ(container.size(), 0);
   EXPECT_TRUE(container.empty());
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustDefaultConstructWithAllocator) {
-  {
-    ContainerType container{create_allocator()};
-    EXPECT_EQ(container.size(), 0);
-    EXPECT_TRUE(container.empty());
-  }
-  EXPECT_EQ(OperationCounter::TOTALS.constructs(), 0);
-  EXPECT_EQ(totals_.allocs_, 0);
-  EXPECT_EQ(totals_.frees_, 0);
+  ContainerType container{create_allocator()};
+  EXPECT_EQ(container.size(), 0);
+  EXPECT_TRUE(container.empty());
 }
 
-TYPED_TEST(SBOVector_, MustConstructCount) {
+TYPED_TEST(SBOVector_1, MustConstructCount) {
   ContainerType small(SMALL_SIZE);
   EXPECT_EQ(small.size(), SMALL_SIZE);
   EXPECT_EQ(small.capacity(), SBO_SIZE);
@@ -31,19 +26,16 @@ TYPED_TEST(SBOVector_, MustConstructCount) {
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustConstructCount) {
-  {
-    ContainerType small(SMALL_SIZE, create_allocator());
-    EXPECT_EQ(small.size(), SMALL_SIZE);
-    EXPECT_EQ(small.capacity(), SBO_SIZE);
-    EXPECT_FALSE(small.empty());
-    ContainerType large(LARGE_SIZE, create_allocator());
-    EXPECT_EQ(large.size(), LARGE_SIZE);
-    EXPECT_GE(large.capacity(), LARGE_SIZE);
-    EXPECT_FALSE(large.empty());
-  }
-  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
-            OperationCounter::TOTALS.destructs());
-  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+  ContainerType small(SMALL_SIZE, create_allocator());
+  EXPECT_EQ(small.size(), SMALL_SIZE);
+  EXPECT_EQ(small.capacity(), SBO_SIZE);
+  EXPECT_FALSE(small.empty());
+  UseElements(small);
+  ContainerType large(LARGE_SIZE, create_allocator());
+  EXPECT_EQ(large.size(), LARGE_SIZE);
+  EXPECT_GE(large.capacity(), LARGE_SIZE);
+  EXPECT_FALSE(large.empty());
+  UseElements(large);
 }
 
 TEST(ValueVerifiedSBOVector, MustConstructCount) {
@@ -72,7 +64,7 @@ TEST(ValueVerifiedSBOVector, MustConstructCountValue) {
   }
 }
 
-TYPED_TEST(SBOVector_, MustConstructFromInitializerList) {
+TYPED_TEST(SBOVector_1, MustConstructFromInitializerList) {
   std::initializer_list<DataType> list{
       DataType(), DataType(), DataType(), DataType(),
       DataType(), DataType(), DataType(), DataType(),
@@ -83,18 +75,14 @@ TYPED_TEST(SBOVector_, MustConstructFromInitializerList) {
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustConstructFromInitializerList) {
-  {
-    std::initializer_list<DataType> list{
-        DataType(), DataType(), DataType(), DataType(),
-        DataType(), DataType(), DataType(), DataType(),
-    };
-    ContainerType container(list, create_allocator());
-    EXPECT_EQ(container.size(), list.size());
-    EXPECT_FALSE(container.empty());
-  }
-  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
-            OperationCounter::TOTALS.destructs());
-  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+  std::initializer_list<DataType> list{
+      DataType(), DataType(), DataType(), DataType(),
+      DataType(), DataType(), DataType(), DataType(),
+  };
+  ContainerType container(list, create_allocator());
+  EXPECT_EQ(container.size(), list.size());
+  EXPECT_FALSE(container.empty());
+  UseElements(container);
 }
 
 TEST(ValueVerifiedSBOVector, MustConstructFromInitializerList) {
@@ -104,7 +92,7 @@ TEST(ValueVerifiedSBOVector, MustConstructFromInitializerList) {
   EXPECT_RANGE_EQ(sbo, vec);
 }
 
-TYPED_TEST(SBOVector_, MustConstructFromRange) {
+TYPED_TEST(SBOVector_1, MustConstructFromRange) {
   {
     std::vector<DataType> vec(SMALL_SIZE);
     ContainerType container(vec.begin(), vec.end());
@@ -119,20 +107,17 @@ TYPED_TEST(SBOVector_, MustConstructFromRange) {
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustConstructFromRange) {
   {
-    {
-      std::vector<DataType> vec(SMALL_SIZE);
-      ContainerType container(vec.begin(), vec.end(), create_allocator());
-      EXPECT_EQ(container.size(), SMALL_SIZE);
-    }
-    {
-      std::vector<DataType> vec(LARGE_SIZE);
-      ContainerType container(vec.begin(), vec.end(), create_allocator());
-      EXPECT_EQ(container.size(), LARGE_SIZE);
-    }
+    std::vector<DataType> vec(SMALL_SIZE);
+    ContainerType container(vec.begin(), vec.end(), create_allocator());
+    EXPECT_EQ(container.size(), SMALL_SIZE);
+    UseElements(container);
   }
-  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
-            OperationCounter::TOTALS.destructs());
-  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+  {
+    std::vector<DataType> vec(LARGE_SIZE);
+    ContainerType container(vec.begin(), vec.end(), create_allocator());
+    EXPECT_EQ(container.size(), LARGE_SIZE);
+    UseElements(container);
+  }
 }
 
 TEST(ValueVerifiedSBOVector, MustConstructFromRange) {
@@ -148,7 +133,7 @@ TEST(ValueVerifiedSBOVector, MustConstructFromRange) {
   }
 }
 
-TYPED_TEST(SBOVector_, MustCopyConstruct) {
+TYPED_TEST(SBOVector_1, MustCopyConstruct) {
   {
     const ContainerType old(SMALL_SIZE);
     ContainerType new_(old);
@@ -168,26 +153,27 @@ TYPED_TEST(SBOVector_, MustCopyConstruct) {
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustCopyConstruct) {
   {
-    {
-      const ContainerType old(SMALL_SIZE, create_allocator());
-      ContainerType new_(old);
-      EXPECT_EQ(new_.size(), SMALL_SIZE);
-    }
-    {
-      const ContainerType old(LARGE_SIZE, create_allocator());
-      ContainerType new_(old);
-      EXPECT_EQ(new_.size(), LARGE_SIZE);
-    }
-    {
-      const SBOVector<DataType, SBO_SIZE + 10, AllocatorType> old(
-          SBO_SIZE + 5, create_allocator());
-      ContainerType new_(old);
-      EXPECT_EQ(new_.size(), SBO_SIZE + 5);
-    }
+    const ContainerType old(SMALL_SIZE, create_allocator());
+    ContainerType new_(old);
+    EXPECT_EQ(new_.size(), SMALL_SIZE);
+    UseElements(old);
+    UseElements(new_);
   }
-  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
-            OperationCounter::TOTALS.destructs());
-  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+  {
+    const ContainerType old(LARGE_SIZE, create_allocator());
+    ContainerType new_(old);
+    EXPECT_EQ(new_.size(), LARGE_SIZE);
+    UseElements(old);
+    UseElements(new_);
+  }
+  {
+    const SBOVector<DataType, SBO_SIZE + 10, AllocatorType> old(
+        SBO_SIZE + 5, create_allocator());
+    ContainerType new_(old);
+    EXPECT_EQ(new_.size(), SBO_SIZE + 5);
+    UseElements(old);
+    UseElements(new_);
+  }
 }
 
 TEST(ValueVerifiedSBOVector, MustCopyConstruct) {
@@ -211,7 +197,7 @@ TEST(ValueVerifiedSBOVector, MustCopyConstruct) {
   }
 }
 
-TYPED_TEST(SBOVector_, MustMoveConstruct) {
+TYPED_TEST(SBOVector_1, MustMoveConstruct) {
   {
     ContainerType old(SMALL_SIZE);
     ContainerType new_(std::move(old));
@@ -231,26 +217,24 @@ TYPED_TEST(SBOVector_, MustMoveConstruct) {
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustMoveConstruct) {
   {
-    {
-      ContainerType old(SMALL_SIZE, create_allocator());
-      ContainerType new_(std::move(old));
-      EXPECT_EQ(new_.size(), SMALL_SIZE);
-    }
-    {
-      ContainerType old(LARGE_SIZE, create_allocator());
-      ContainerType new_(std::move(old));
-      EXPECT_EQ(new_.size(), LARGE_SIZE);
-    }
-    {
-      SBOVector<DataType, SBO_SIZE + 10, AllocatorType> old(SBO_SIZE + 5,
-                                                            create_allocator());
-      ContainerType new_(std::move(old));
-      EXPECT_EQ(new_.size(), SBO_SIZE + 5);
-    }
+    ContainerType old(SMALL_SIZE, create_allocator());
+    ContainerType new_(std::move(old));
+    EXPECT_EQ(new_.size(), SMALL_SIZE);
+    UseElements(new_);
   }
-  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
-            OperationCounter::TOTALS.destructs());
-  EXPECT_EQ(totals_.allocs_, totals_.frees_);
+  {
+    ContainerType old(LARGE_SIZE, create_allocator());
+    ContainerType new_(std::move(old));
+    EXPECT_EQ(new_.size(), LARGE_SIZE);
+    UseElements(new_);
+  }
+  {
+    SBOVector<DataType, SBO_SIZE + 10, AllocatorType> old(SBO_SIZE + 5,
+                                                          create_allocator());
+    ContainerType new_(std::move(old));
+    EXPECT_EQ(new_.size(), SBO_SIZE + 5);
+    UseElements(new_);
+  }
 }
 
 TEST(ValueVerifiedSBOVector, MustMoveConstruct) {

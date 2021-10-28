@@ -2,7 +2,7 @@
 
 // Unittests for swap methods
 
-TYPED_TEST(SBOVector_, MustSwap) {
+TYPED_TEST(SBOVector_1, MustSwap) {
   { 
     ContainerType a;
     ContainerType b(SMALL_SIZE);
@@ -18,21 +18,20 @@ TYPED_TEST(SBOVector_, MustSwap) {
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustSwap) {
-  { 
-    ContainerType a(create_allocator());
-    ContainerType b(SMALL_SIZE, create_allocator());
-    ContainerType c(LARGE_SIZE, create_allocator());
-    b.swap(a); // empty <> inline
-    EXPECT_EQ(b.size(), 0);
-    c.swap(b); // empty <> external
-    EXPECT_EQ(a.size(), SMALL_SIZE);
-    EXPECT_EQ(b.size(), LARGE_SIZE);
-    EXPECT_EQ(c.size(), 0);
-    a.swap(b); // inline <> external
-  }
-  EXPECT_EQ(totals_.allocs_, totals_.frees_);
-  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
-            OperationCounter::TOTALS.destructs());
+  ContainerType a(create_allocator());
+  ContainerType b(SMALL_SIZE, create_allocator());
+  ContainerType c(LARGE_SIZE, create_allocator());
+  b.swap(a); // empty <> inline
+  EXPECT_EQ(b.size(), 0);
+  UseElements(a);
+  c.swap(b); // empty <> external
+  EXPECT_EQ(a.size(), SMALL_SIZE);
+  EXPECT_EQ(b.size(), LARGE_SIZE);
+  EXPECT_EQ(c.size(), 0);
+  UseElements(b);
+  a.swap(b); // inline <> external
+  UseElements(a);
+  UseElements(b);
 }
 
 TEST(ValueVerifiedSBOVector, MustSwap) {
@@ -58,7 +57,7 @@ TEST(ValueVerifiedSBOVector, MustSwap) {
   }
 }
 
-TYPED_TEST(SBOVector_, MustSwapAsymmetric) {
+TYPED_TEST(SBOVector_1, MustSwapAsymmetric) {
   { // inline to insufficient inline
     ContainerType a(SBO_SIZE);
     SBOVector<DataType, SMALL_SIZE, AllocatorType> b(SMALL_SIZE);
@@ -83,35 +82,36 @@ TYPED_TEST(SBOVector_, MustSwapAsymmetric) {
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustSwapAsymmetric) {
-  {
-    {  // inline to insufficient inline
-      ContainerType a(SBO_SIZE, create_allocator());
-      SBOVector<DataType, SMALL_SIZE, AllocatorType> b(SMALL_SIZE,
-                                                       create_allocator());
-      a.swap(b);
-      EXPECT_EQ(a.size(), SMALL_SIZE);
-      EXPECT_EQ(b.size(), SBO_SIZE);
-    }
-    {  // external to sufficent inline
-      ContainerType a(SBO_SIZE, create_allocator());
-      SBOVector<DataType, SMALL_SIZE, AllocatorType> b(SBO_SIZE,
-                                                       create_allocator());
-      a.swap(b);
-      EXPECT_EQ(a.size(), SBO_SIZE);
-      EXPECT_EQ(b.size(), SBO_SIZE);
-    }
-    {  // external to external
-      ContainerType a(LARGE_SIZE, create_allocator());
-      SBOVector<DataType, SMALL_SIZE, AllocatorType> b(LARGE_SIZE,
-                                                       create_allocator());
-      a.swap(b);
-      EXPECT_EQ(a.size(), LARGE_SIZE);
-      EXPECT_EQ(b.size(), LARGE_SIZE);
-    }
+  {  // inline to insufficient inline
+    ContainerType a(SBO_SIZE, create_allocator());
+    SBOVector<DataType, SMALL_SIZE, AllocatorType> b(SMALL_SIZE,
+                                                      create_allocator());
+    a.swap(b);
+    EXPECT_EQ(a.size(), SMALL_SIZE);
+    EXPECT_EQ(b.size(), SBO_SIZE);
+    UseElements(a);
+    UseElements(b);
   }
-  EXPECT_EQ(totals_.allocs_, totals_.frees_);
-  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
-            OperationCounter::TOTALS.destructs());
+  {  // external to sufficent inline
+    ContainerType a(SBO_SIZE, create_allocator());
+    SBOVector<DataType, SMALL_SIZE, AllocatorType> b(SBO_SIZE,
+                                                      create_allocator());
+    a.swap(b);
+    EXPECT_EQ(a.size(), SBO_SIZE);
+    EXPECT_EQ(b.size(), SBO_SIZE);
+    UseElements(a);
+    UseElements(b);
+  }
+  {  // external to external
+    ContainerType a(LARGE_SIZE, create_allocator());
+    SBOVector<DataType, SMALL_SIZE, AllocatorType> b(LARGE_SIZE,
+                                                      create_allocator());
+    a.swap(b);
+    EXPECT_EQ(a.size(), LARGE_SIZE);
+    EXPECT_EQ(b.size(), LARGE_SIZE);
+    UseElements(a);
+    UseElements(b);
+  }
 }
 
 TEST(ValueVerifiedSBOVector, MustSwapAsymmetric) {
@@ -142,30 +142,31 @@ TEST(ValueVerifiedSBOVector, MustSwapAsymmetric) {
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustSwapAsymmetricAllocators) {
-  {
-    {  // inline to insufficient inline
-      ContainerType a(SBO_SIZE, create_allocator());
-      SBOVector<DataType, SMALL_SIZE> b(SMALL_SIZE);
-      a.swap(b);
-      EXPECT_EQ(a.size(), SMALL_SIZE);
-      EXPECT_EQ(b.size(), SBO_SIZE);
-    }
-    {  // external to sufficent inline
-      ContainerType a(SBO_SIZE, create_allocator());
-      SBOVector<DataType, SMALL_SIZE> b(SBO_SIZE);
-      a.swap(b);
-      EXPECT_EQ(a.size(), SBO_SIZE);
-      EXPECT_EQ(b.size(), SBO_SIZE);
-    }
-    {  // external to external
-      ContainerType a(LARGE_SIZE, create_allocator());
-      SBOVector<DataType, SMALL_SIZE> b(LARGE_SIZE);
-      a.swap(b);
-      EXPECT_EQ(a.size(), LARGE_SIZE);
-      EXPECT_EQ(b.size(), LARGE_SIZE);
-    }
+  {  // inline to insufficient inline
+    ContainerType a(SBO_SIZE, create_allocator());
+    SBOVector<DataType, SMALL_SIZE> b(SMALL_SIZE);
+    a.swap(b);
+    EXPECT_EQ(a.size(), SMALL_SIZE);
+    EXPECT_EQ(b.size(), SBO_SIZE);
+    UseElements(a);
+    UseElements(b);
   }
-  EXPECT_EQ(totals_.allocs_, totals_.frees_);
-  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
-            OperationCounter::TOTALS.destructs());
+  {  // external to sufficent inline
+    ContainerType a(SBO_SIZE, create_allocator());
+    SBOVector<DataType, SMALL_SIZE> b(SBO_SIZE);
+    a.swap(b);
+    EXPECT_EQ(a.size(), SBO_SIZE);
+    EXPECT_EQ(b.size(), SBO_SIZE);
+    UseElements(a);
+    UseElements(b);
+  }
+  {  // external to external
+    ContainerType a(LARGE_SIZE, create_allocator());
+    SBOVector<DataType, SMALL_SIZE> b(LARGE_SIZE);
+    a.swap(b);
+    EXPECT_EQ(a.size(), LARGE_SIZE);
+    EXPECT_EQ(b.size(), LARGE_SIZE);
+    UseElements(a);
+    UseElements(b);
+  }
 }
