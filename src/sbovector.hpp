@@ -328,6 +328,19 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     external_.data_ = new_data;
     external_.capacity_ = count_;
   }
+
+  DataType* erase(const DataType* pos, size_t count) {
+    const auto must_internalize =
+        (count_ > BufferSize) && (count_ - count) <= BufferSize;
+    auto i_pos = std::distance(const_cast<const DataType*>(begin()), pos);
+    assign_n(begin() + i_pos + count, count_ - (i_pos + count),
+             begin() + i_pos);
+    std::destroy_n(begin() + (count_ - count), count);
+    count_ -= count;
+    if (must_internalize)
+      internalize();
+    return begin() + i_pos;
+  }
 };
 
 } // namespace details_
@@ -556,26 +569,11 @@ class SBOVector {
    }
 
    iterator erase(const_iterator pos) { 
-     size_t out_d = std::distance(cbegin(), pos);
-     if constexpr (std::is_move_assignable_v<DataType>) {
-       std::move(begin() + out_d + 1, end(), begin() + out_d);
-     } else {
-       std::copy(pos + 1, cend(), begin() + out_d);
-     }
-     std::destroy_at(cend() - 1);
-     if (--impl_.count_ == BufferSize) {
-       impl_.internalize();
-     }
-     return begin() + out_d;
+     return impl_.erase(pos, 1);
    }
 
    iterator erase(const_iterator p_begin, const_iterator p_end) {
-     size_t start = std::distance(cbegin(), p_begin);
-     size_t count = std::distance(p_begin, p_end);
-     for (size_t i = 1; i < count; ++i) {
-       erase(begin() + start);
-     }
-     return erase(begin() + start);
+     return impl_.erase(p_begin, std::distance(p_begin, p_end));
    }
 
    void push_back(const DataType& value) {
