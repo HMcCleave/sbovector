@@ -1,5 +1,7 @@
 #include <benchmark/benchmark.h>
 
+#include "sbovector.hpp"
+
 #include <array>
 #include <vector>
 
@@ -54,5 +56,11 @@ BENCHMARK_TEMPLATE(BM_MotivatingExample,
                     std::vector<int>,
                     int_provider,
                     int_consumer);
+
+BENCHMARK_TEMPLATE(BM_LazyConstructLarge, SBOVector<int, 16>, int_provider);
+BENCHMARK_TEMPLATE(BM_MotivatingExample,
+                   SBOVector<int, 16>,
+                   int_provider,
+                   int_consumer);
 
 BENCHMARK_MAIN();
