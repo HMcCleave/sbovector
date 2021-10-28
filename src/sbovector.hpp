@@ -599,13 +599,7 @@ class SBOVector {
      return back();
    }
 
-   void pop_back() {
-     std::destroy_at<DataType>(&(back()));
-     --impl_.count_;
-     if (impl_.count_ == BufferSize) {
-       impl_.internalize();
-     }
-   }
+   void pop_back() { erase(begin() + size() - 1); }
 
    void resize(size_t count) {
      if (size() > count)
