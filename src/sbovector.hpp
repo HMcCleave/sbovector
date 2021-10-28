@@ -83,6 +83,27 @@ struct SBOVectorBase<DataType, BufferSize, Allocator, false> {
   Allocator get_allocator() const { return alloc_; }
 };
 
+
+template<typename DataType>
+inline void uninit_assign_n(DataType* src, size_t count, DataType* dest) {
+  if constexpr (std::is_trivial_v<DataType>) {
+    memcpy(dest, src, sizeof(DataType) * count);
+  } else if constexpr (std::is_move_constructible_v<DataType>) {
+    std::uninitialized_move_n(src, count, dest);
+  } else {
+    std::uninitialized_copy_n(src, count, dest);
+  }
+}
+
+template<typename DataType>
+inline void assign_backward_n(DataType* src, size_t count, DataType* dest) {
+  if constexpr (std::is_move_assignable_v<DataType>) {
+    std::move_backward(src, src + count, dest);
+  } else {
+    std::copy_backward(src, src + count, dest);
+  }
+}
+
 template<typename DataType, size_t BufferSize, typename Allocator>
 struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
   using BaseType = SBOVectorBase<DataType, BufferSize, Allocator>;
@@ -94,7 +115,7 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
   }
 
   DataType* begin() {
-    return (count_ <= BufferSize ? reinterpret_cast<DataType*>(inline_.data())
+    return (count_ <= BufferSize ? re_inline()
                                  : external_.data_);
   }
 
@@ -118,15 +139,11 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     auto new_size = count_ + insert_count;
     auto uninit_count = std::min(count_ - pos, insert_count);
     auto assign_count = count_ - (pos + uninit_count);
-    if constexpr (std::is_move_constructible_v<DataType>) {
-      std::uninitialized_move_n(end() - uninit_count, uninit_count, begin() + new_size - uninit_count);
-      std::move_backward(begin() + pos, begin() + pos + assign_count, end() - 1);
-      std::destroy_n(begin() + pos, std::min(insert_count, count_ - pos));
-    } else {
-      std::uninitialized_copy_n(end() - uninit_count, uninit_count, begin() + new_size - uninit_count);
-      std::copy_backward(begin() + pos, begin() + pos + assign_count, end() - 1);
-      std::destroy_n(begin() + pos, std::min(insert_count, count_ - pos));
-    }
+    uninit_assign_n(end() - uninit_count, uninit_count,
+                    begin() + new_size - uninit_count);
+    assign_backward(
+        begin() + pos, pos + assign_count, end() - 1);
+    std::destroy_n(begin() + pos, std::min(insert_count, count_ - pos));
     count_ += insert_count;
   }
 
@@ -134,15 +151,9 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     size_t new_size = count_ + insert_count;
     DataType* new_buffer = get_allocator().allocate(new_size);
     // TODO: throw bad_alloc on nullptr if using exceptions
-    if constexpr (std::is_move_constructible_v<DataType>) {
-      std::uninitialized_move_n(begin(), pos, new_buffer);
-      std::uninitialized_move_n(begin() + pos, count_ - pos,
-                                new_buffer + pos + insert_count);
-    } else {
-      std::uninitialized_copy_n(begin(), pos, new_buffer);
-      std::uninitialized_copy_n(begin() + pos, count_ - pos,
-                                new_buffer + pos + insert_count);
-    }
+    uninit_assign_n(begin(), pos, new_buffer);
+    uninit_assign_n(begin() + pos, count_ - pos,
+                    new_buffer + pos + insert_count);
     clear();
     count_ = new_size;
     external_.data_ = new_buffer;
@@ -170,16 +181,8 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     // Helper function, must be called when decreasing in size such that the count is <= BufferSize but an external buffer still exists
     auto external_ptr_copy = external_.data_;
     auto external_capacity_copy = external_.capacity_;
-    new (&inline_) decltype(inline_)(); 
-    if constexpr (std::is_move_constructible_v<DataType>) {
-      std::uninitialized_move_n(
-          external_ptr_copy, count_,
-          reinterpret_cast<DataType*>(inline_.data()));
-    } else {
-      std::uninitialized_copy_n(
-          external_ptr_copy, count_,
-          reinterpret_cast<DataType*>(inline_.data()));
-    }
+    new (&inline_) decltype(inline_)();
+    uninit_assign_n(external_ptr_copy, count_, re_inline());
     std::destroy_n(external_ptr_copy, count_);
     get_allocator().deallocate(external_ptr_copy, external_capacity_copy);
   }
@@ -191,43 +194,32 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     auto& small_impl = smaller;
     for (auto i = 0u; i < small_impl.count_; ++i) {
       if constexpr (std::is_swappable_v<DataType>) {
-        std::swap<DataType>(*reinterpret_cast<DataType*>(large_impl.inline_.data() + i), *reinterpret_cast<DataType*>(small_impl.inline_.data() + i));
-      } else if constexpr (std::is_move_constructible_v<DataType> &&
-                           std::is_move_assignable_v<DataType>) {
-        auto p_large_at_i =
-            reinterpret_cast<DataType*>(large_impl.inline_.data() + i);
-        auto p_small_at_i =
-            reinterpret_cast<DataType*>(small_impl.inline_.data() + i);
-        DataType temp(std::move(*p_large_at_i));
-        *p_large_at_i = std::move(*p_small_at_i);
-        *p_small_at_i = std::move(temp);
-      } else if constexpr (std::is_copy_constructible_v<DataType> &&
-                           std::is_copy_assignable_v<DataType>) {
-        auto p_large_at_i =
-            reinterpret_cast<DataType*>(large_impl.inline_.data() + i);
-        auto p_small_at_i =
-            reinterpret_cast<DataType*>(small_impl.inline_.data() + i);
-        DataType temp(*p_large_at_i);
-        *p_large_at_i = *p_small_at_i;
-        *p_small_at_i = temp;
+        std::swap<DataType>(*(large_impl.re_inline() + i),
+                            *(small_impl.re_inline() + i));
       } else {
-        static_assert(std::is_copy_constructible_v<DataType> &&
-                          std::is_copy_assignable_v<DataType>,
-                      "DataType is unswappable!");
+        std::aligned_storage_t<sizeof(DataType), alignof(DataType)> temp;
+        auto p_temp = reinterpret_cast<DataType*>(&temp);
+        uninit_assign_n(large_impl.re_inline() + i, 1, p_temp);
+        assign_backward_n(small_impl.re_inline() + i, 1,
+                          large_impl.re_inline() + i);
+        assign_backward_n(p_temp, 1, small_impl.re_inline() + i);
+        std::destroy_at(p_temp);
       }
     }
     {
       auto start = small_impl.count_;
       auto count = large_impl.count_ - small_impl.count_;
-      if constexpr (std::is_move_constructible_v<DataType>) {
-        std::uninitialized_move_n(&large_impl.inline_[start], count,
-                                  &small_impl.inline_[start]);
-      } else {
-        std::uninitialized_copy_n(&large_impl.inline_[start], count,
-                                  &small_impl.inline_[start]);
-      }
+      uninit_assign_n(large_impl.re_inline() + start,
+          count,
+          small_impl.re_inline() + start);
+      std::destroy_n(large_impl.re_inline() + start,
+                     count);
     }
     std::swap(count_, smaller.count_);
+  }
+
+  inline DataType* re_inline() {
+    return reinterpret_cast<DataType*>(inline_.data());
   }
 };
 
@@ -401,11 +393,7 @@ class SBOVector {
        return;
      DataType* new_data = get_allocator().allocate(requested_capacity);
      // TODO if using exceptions, throw bad_alloc on nullptr
-     if constexpr (std::is_move_assignable_v<DataType>) {
-       std::uninitialized_move(begin(), end(), new_data);
-     } else {
-       std::uninitialized_copy(begin(), end(), new_data);
-     }
+     details_::uninit_assign_n(begin(), size(), new_data);
      std::destroy(begin(), end());
      get_allocator().deallocate(impl_.external_.data_,
                               impl_.external_.capacity_);
@@ -425,11 +413,7 @@ class SBOVector {
        return;
      DataType* new_data = get_allocator().allocate(size());
      // TODO if using exceptions, throw bad_alloc on nullptr
-     if constexpr (std::is_move_assignable_v<DataType>) {
-       std::uninitialized_move(begin(), end(), new_data);
-     } else {
-       std::uninitialized_copy(begin(), end(), new_data);
-     }
+     details_::uninit_assign_n(begin(), size(), new_data);
      std::destroy(begin(), end());
      get_allocator().deallocate(impl_.external_.data_, impl_.external_.capacity_);
      impl_.external_.data_ = new_data;
@@ -524,7 +508,7 @@ class SBOVector {
      if (size() == capacity())
        grow();
      ++impl_.count_;
-     new (&back()) DataType(value);
+     new (&back()) DataType(std::forward<DataType>(value));
    }
 
    template <typename... Args>
@@ -545,14 +529,18 @@ class SBOVector {
    }
 
    void resize(size_t count) {
-     DataType value{};
-     resize(count, value);
+     if (size() > count)
+       erase(end() - (size() - count), end());
+     else if (size() < count) {
+       insert(end(), count - size(), DataType());
+     }
    }
+
    void resize(size_t count, const DataType& v) {
-     while (impl_.count_ > count)
-       pop_back();
-     if (impl_.count_ < count) {
-       insert(end(), count - impl_.count_, v);
+     if (size() > count)
+       erase(end() - (size() - count), end());
+     else if (size() < count) {
+       insert(end(), count - size(), v);
      }
    }
 
@@ -602,14 +590,9 @@ class SBOVector {
        auto large_ptr = large_impl.external_.data_;
        auto large_cap = large_impl.external_.capacity_;
        new (&large_impl.inline_) decltype(large_impl.inline_)();
-       if constexpr (std::is_move_constructible_v<DataType>) {
-         std::uninitialized_move_n(reinterpret_cast<pointer>(small_impl.inline_.data()), small_impl.count_,
-                                   reinterpret_cast<pointer>(large_impl.inline_.data()));
-       } else {
-         std::uninitialized_copy_n(reinterpret_cast<pointer>(small_impl.inline_.data()), small_impl.count_,
-                                   reinterpret_cast<pointer>(large_impl.inline_.data()));
-       }
-       std::destroy_n(reinterpret_cast<pointer>(small_impl.inline_.data()),
+       details_::uninit_assign_n(small_impl.re_inline(), small_impl.count_,
+                                 large_impl.re_inline());
+       std::destroy_n(small_impl.re_inline(),
                       small_impl.count_);
        small_impl.external_.data_ = large_ptr;
        small_impl.external_.capacity_ = large_cap;
@@ -624,11 +607,7 @@ class SBOVector {
      size_t requested = size() * details_::kSBOVectorGrowthFactor;
      DataType* new_data = get_allocator().allocate(requested);
      // TODO if using exceptions, throw bad_alloc on nullptr
-     if constexpr (std::is_move_assignable_v<DataType>) {
-       std::uninitialized_move(begin(), end(), new_data);
-     } else {
-       std::uninitialized_copy(begin(), end(), new_data);
-     }
+     details_::uninit_assign_n(begin(), size(), new_data);
      std::destroy(begin(), end());
      if (size() > BufferSize) {
        get_allocator().deallocate(impl_.external_.data_,
