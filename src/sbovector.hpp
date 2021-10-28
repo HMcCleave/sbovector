@@ -55,6 +55,7 @@ struct SBOVectorBase : private Allocator {
 
   ~SBOVectorBase() { /*intentionally empty*/ }
 
+  Allocator& access_allocator() { return *this; }
   Allocator get_allocator() const { return *this; }
 };
 
@@ -79,7 +80,7 @@ struct SBOVectorBase<DataType, BufferSize, Allocator, false> {
 
   ~SBOVectorBase() { /*intentionally empty*/ }
 
-
+  Allocator& access_allocator() { return alloc_; }
   Allocator get_allocator() const { return alloc_; }
 };
 
@@ -221,6 +222,25 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
   inline DataType* re_inline() {
     return reinterpret_cast<DataType*>(inline_.data());
   }
+
+  void reserve(size_t capacity) {
+    // If calling reserve with count_ <= BufferSize
+    // reserve will leave this in an invalid state
+    // care must be taken to resolve this
+    // (increase count_ + construct required elements)
+    // immediately.
+
+    capacity = std::max(capacity, count_ * kSBOVectorGrowthFactor);
+    DataType* new_data = access_allocator().allocate(capacity);
+    // TODO if using exceptions, throw bad_alloc on nullptr
+    details_::uninit_assign_n(begin(), count_, new_data);
+    std::destroy(begin(), end());
+    if (count_ > BufferSize) {
+      access_allocator().deallocate(external_.data_, external_.capacity_);
+    }
+    external_.data_ = new_data;
+    external_.capacity_ = capacity;
+  }
 };
 
 } // namespace details_
@@ -337,71 +357,54 @@ class SBOVector {
      assign(list.begin(), list.end());
    }
 
-   Allocator get_allocator() const noexcept { return impl_.get_allocator(); }
+   [[nodiscard]] Allocator get_allocator() const noexcept { return impl_.get_allocator(); }
 
-   reference at(size_t index) { return *(begin() + index); }
-   const_reference at(size_t) const { return *(cbegin() + index); }
+   [[nodiscard]] reference at(size_t index) { return *(begin() + index); }
+   [[nodiscard]] const_reference at(size_t) const { return *(cbegin() + index); }
 
-   reference operator[](size_t index) { return at(index); }
-   const_reference operator[](size_t index) const { return at(index); }
+   [[nodiscard]] reference operator[](size_t index) { return at(index); }
+   [[nodiscard]] const_reference operator[](size_t index) const { return at(index); }
 
-   reference front() { return at(0); }
-   const_reference front() const { return at(0); }
+   [[nodiscard]] reference front() { return at(0); }
+   [[nodiscard]] const_reference front() const { return at(0); }
 
-   reference back() { return at(size() - 1); }
-   const_reference back() const { return at(size() - 1); }
+   [[nodiscard]] reference back() { return at(size() - 1); }
+   [[nodiscard]] const_reference back() const { return at(size() - 1); }
 
-   pointer data() noexcept {
+   [[nodiscard]] pointer data() noexcept {
      return impl_.begin();
    }
-   const_pointer data() const noexcept { 
+   [[nodiscard]] const_pointer data() const noexcept { 
      return impl_.begin();
    }
-   const_pointer cdata() const noexcept { return data(); }
+   [[nodiscard]] const_pointer cdata() const noexcept { return data(); }
 
-   iterator begin() noexcept {
-     return data();
-   }
-   const_iterator begin() const noexcept { 
-     return data();
-   }
+   [[nodiscard]] iterator begin() noexcept { return data(); }
+   [[nodiscard]] const_iterator begin() const noexcept { return data(); }
+   [[nodiscard]] const_iterator cbegin() const noexcept { return begin(); }
 
-   const_iterator cbegin() const noexcept { 
-     return begin();
-   }
+   [[nodiscard]] iterator end() noexcept { return begin() + size(); }
+   [[nodiscard]] const_iterator end() const noexcept { return cbegin() + size(); }
+   [[nodiscard]] const_iterator cend() const noexcept { return end(); }
 
-   iterator end() noexcept { return begin() + size(); }
-   const_iterator end() const noexcept { return cbegin() + size(); }
-   const_iterator cend() const noexcept { return end(); }
+   [[nodiscard]] reverse_iterator rbegin() noexcept { return std::make_reverse_iterator(end()); }
+   [[nodiscard]] const_reverse_iterator rbegin() const noexcept { return std::make_reverse_iterator(cend()); }
+   [[nodiscard]] const_reverse_iterator crbegin() const noexcept { return rbegin(); }
+   [[nodiscard]] reverse_iterator rend() noexcept { return rbegin() + size(); }
+   [[nodiscard]] const_reverse_iterator rend() const noexcept { return rbegin() + size(); }
+   [[nodiscard]] const_reverse_iterator crend() const noexcept { return crbegin() + size(); }
 
-   reverse_iterator rbegin() noexcept {
-     return std::make_reverse_iterator(end());
-   }
-   const_reverse_iterator rbegin() const noexcept {
-     return std::make_reverse_iterator(cend());
-   }
-   const_reverse_iterator crbegin() const noexcept { return rbegin(); }
-   reverse_iterator rend() noexcept { return rbegin() + size(); }
-   const_reverse_iterator rend() const noexcept { return rbegin() + size(); }
-   const_reverse_iterator crend() const noexcept { return crbegin() + size(); }
+   [[nodiscard]] bool empty() const noexcept { return 0 == size(); }
+   [[nodiscard]] size_t size() const noexcept { return impl_.count_; }
+   [[nodiscard]] size_t max_size() const noexcept { return std::allocator_traits<Allocator>::max_size(); }
 
-   bool empty() const noexcept { return 0 == size(); }
-   size_t size() const noexcept { return impl_.count_; }
-   size_t max_size() const noexcept { return std::allocator_traits<Allocator>::max_size(); }
    void reserve_if_external(size_t requested_capacity) {
      if (requested_capacity <= capacity() || size() <= BufferSize)
        return;
-     DataType* new_data = get_allocator().allocate(requested_capacity);
-     // TODO if using exceptions, throw bad_alloc on nullptr
-     details_::uninit_assign_n(begin(), size(), new_data);
-     std::destroy(begin(), end());
-     get_allocator().deallocate(impl_.external_.data_,
-                              impl_.external_.capacity_);
-     impl_.external_.data_ = new_data;
-     impl_.external_.capacity_ = requested_capacity;
+     impl_.reserve(requested_capacity);
    }
 
-   size_t capacity() const noexcept {
+   [[nodiscard]] size_t capacity() const noexcept {
      if (size() <= BufferSize) {
        return BufferSize;
      }
@@ -499,14 +502,14 @@ class SBOVector {
 
    void push_back(const DataType& value) {
      if (size() == capacity())
-       grow();
+       impl_.reserve(size() + 1);
      ++impl_.count_;
      new (&back()) DataType(value);
    }
 
    void push_back(DataType&& value) {
      if (size() == capacity())
-       grow();
+       impl_.reserve(size() + 1);
      ++impl_.count_;
      new (&back()) DataType(std::forward<DataType>(value));
    }
@@ -514,7 +517,7 @@ class SBOVector {
    template <typename... Args>
    reference emplace_back(Args&&... args) {
      if (size() == capacity())
-       grow();
+       impl_.reserve(size() + 1);
      ++impl_.count_;
      new (&back()) DataType(std::forward<Args>(args)...);
      return back();
@@ -601,21 +604,6 @@ class SBOVector {
    }
 
   private:
-   void grow() {
-     // Note: if calling grown with count_ <= BufferSize, you must immediately insert sufficient elements
-     // as grow will change to an external_buffer, and count_ <= BufferSize implies internal_buffer is being used
-     size_t requested = size() * details_::kSBOVectorGrowthFactor;
-     DataType* new_data = get_allocator().allocate(requested);
-     // TODO if using exceptions, throw bad_alloc on nullptr
-     details_::uninit_assign_n(begin(), size(), new_data);
-     std::destroy(begin(), end());
-     if (size() > BufferSize) {
-       get_allocator().deallocate(impl_.external_.data_,
-                                impl_.external_.capacity_);
-     }
-     impl_.external_.data_ = new_data;
-     impl_.external_.capacity_ = requested;
-   }
 
    template<typename Other>
    inline void swap_inline_buffers(Other& that) {
