@@ -105,6 +105,15 @@ inline void assign_backward_n(DataType* src, size_t count, DataType* dest) {
   }
 }
 
+template<typename DataType>
+inline void assign_n(DataType* src, size_t count, DataType* dest) {
+  if constexpr (std::is_move_assignable_v<DataType>) {
+    std::move(src, src + count, dest);
+  } else {
+    std::copy(src, src + count, dest);
+  }
+}
+
 template<typename DataType, size_t BufferSize, typename Allocator>
 struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
   using BaseType = SBOVectorBase<DataType, BufferSize, Allocator>;
@@ -116,7 +125,7 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
   }
 
   DataType* begin() {
-    return (count_ <= BufferSize ? re_inline()
+    return (count_ <= BufferSize ? inline_as_datatype()
                                  : external_.data_);
   }
 
@@ -132,6 +141,7 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     std::destroy(begin(), end());
     if (count_ > BufferSize) {
       get_allocator().deallocate(external_.data_, external_.capacity_);
+      new (&inline_) decltype(inline_)();
     }
     count_ = 0;
   }
@@ -183,43 +193,107 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     auto external_ptr_copy = external_.data_;
     auto external_capacity_copy = external_.capacity_;
     new (&inline_) decltype(inline_)();
-    uninit_assign_n(external_ptr_copy, count_, re_inline());
+    uninit_assign_n(external_ptr_copy, count_, inline_as_datatype());
     std::destroy_n(external_ptr_copy, count_);
     get_allocator().deallocate(external_ptr_copy, external_capacity_copy);
   }
 
-  template <size_t SmallerSize, typename OA>
-  void inline_swap(VectorImpl<DataType, SmallerSize, OA> &smaller) {
-    // Both Inline
+  template <size_t OtherSize, typename OA>
+  void inline_swap(VectorImpl<DataType, OtherSize, OA>& smaller) {
+    // requirement count_ >= smaller.count_
+    // requirement count_ <= OtherSize AND small.count_ <= BufferSize
     auto& large_impl = *this;
     auto& small_impl = smaller;
     for (auto i = 0u; i < small_impl.count_; ++i) {
       if constexpr (std::is_swappable_v<DataType>) {
-        std::swap<DataType>(*(large_impl.re_inline() + i),
-                            *(small_impl.re_inline() + i));
+        std::swap<DataType>(*(large_impl.inline_as_datatype() + i),
+                            *(small_impl.inline_as_datatype() + i));
       } else {
         std::aligned_storage_t<sizeof(DataType), alignof(DataType)> temp;
         auto p_temp = reinterpret_cast<DataType*>(&temp);
-        uninit_assign_n(large_impl.re_inline() + i, 1, p_temp);
-        assign_backward_n(small_impl.re_inline() + i, 1,
-                          large_impl.re_inline() + i);
-        assign_backward_n(p_temp, 1, small_impl.re_inline() + i);
+        uninit_assign_n(large_impl.inline_as_datatype() + i, 1, p_temp);
+        assign_backward_n(small_impl.inline_as_datatype() + i, 1,
+                          large_impl.inline_as_datatype() + i);
+        assign_backward_n(p_temp, 1, small_impl.inline_as_datatype() + i);
         std::destroy_at(p_temp);
       }
     }
     {
       auto start = small_impl.count_;
       auto count = large_impl.count_ - small_impl.count_;
-      uninit_assign_n(large_impl.re_inline() + start,
+      uninit_assign_n(large_impl.inline_as_datatype() + start,
           count,
-          small_impl.re_inline() + start);
-      std::destroy_n(large_impl.re_inline() + start,
+          small_impl.inline_as_datatype() + start);
+      std::destroy_n(large_impl.inline_as_datatype() + start,
                      count);
     }
     std::swap(count_, smaller.count_);
   }
 
-  inline DataType* re_inline() {
+  template<size_t OtherSize>
+  void external_swap(VectorImpl<DataType, OtherSize, Allocator>& other) {
+    // requirement: count > OtherSize AND other.count_ > BufferSize
+    std::swap(count_, other.count_);
+    std::swap(external_.data_, other.external_.data_);
+    std::swap(external_.capacity_, other.external_.capacity_);
+  }
+
+  template<size_t OtherSize, typename OtherAllocator>
+  void swap_cross(VectorImpl<DataType, OtherSize, OtherAllocator>& that) {
+    const auto this_will_be_inline = (that.count_ <= BufferSize);
+    const auto that_will_be_inline = (count_ <= OtherSize);
+
+    // todo still optimization available here
+    auto new_this = access_allocator().allocate(that.count_);
+    auto new_this_size = that.count_;
+    auto new_that = that.access_allocator().allocate(count_);
+    auto new_that_size = count_;
+    uninit_assign_n(that.begin(), that.count_, new_this);
+    uninit_assign_n(begin(), count_, new_that);
+    clear();
+    that.clear();
+    std::destroy_at(&inline_);
+    std::destroy_at(&that.inline_);
+    that.external_.capacity_ = that.count_ = new_that_size;
+    that.external_.data_ = new_that;
+    if (that_will_be_inline)
+      that.internalize();
+    external_.capacity_ = count_ = new_this_size;
+    external_.data_ = new_this;
+    if (this_will_be_inline)
+      internalize();
+
+  }
+
+  template<size_t OtherSize>
+  void swap(VectorImpl<DataType, OtherSize, Allocator>& that) {
+    const auto this_is_inline = (count_ <= BufferSize);
+    const auto that_is_inline = (that.count_ <= OtherSize);
+    const auto this_will_be_inline = (that.count_ <= BufferSize);
+    const auto that_will_be_inline = (count_ <= OtherSize);
+
+    const auto min_size = std::min(count_, that.count_);
+    const auto max_size = std::max(count_, that.count_);
+
+    if (!(this_is_inline || that_is_inline)) {
+      external_swap(that);
+      if (this_will_be_inline)
+        internalize();
+      if (that_will_be_inline)
+        that.internalize();
+    } else if (this_is_inline && that_is_inline && this_will_be_inline &&
+        that_will_be_inline) {
+      if (count_ < that.count_) {
+        that.inline_swap(*this);
+      } else {
+        inline_swap(that);
+      }
+    } else {
+      swap_cross(that);
+    }
+  }
+
+  inline DataType* inline_as_datatype() {
     return reinterpret_cast<DataType*>(inline_.data());
   }
 
@@ -240,6 +314,19 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     }
     external_.data_ = new_data;
     external_.capacity_ = capacity;
+  }
+
+  void shrink_to_fit() {
+    // requires count_ > BufferSize
+    // requires count_ < external_.capacity_
+    DataType* new_data = get_allocator().allocate(count_);
+    // TODO if using exceptions, throw bad_alloc on nullptr
+    uninit_assign_n(begin(), count_, new_data);
+    std::destroy(begin(), end());
+    get_allocator().deallocate(external_.data_,
+                               external_.capacity_);
+    external_.data_ = new_data;
+    external_.capacity_ = count_;
   }
 };
 
@@ -405,22 +492,13 @@ class SBOVector {
    }
 
    [[nodiscard]] size_t capacity() const noexcept {
-     if (size() <= BufferSize) {
-       return BufferSize;
-     }
-     return impl_.external_.capacity_;
+     return impl_.capacity();
    }
 
    void shrink_to_fit_if_external() {
      if (size() <= BufferSize || size() == capacity())
        return;
-     DataType* new_data = get_allocator().allocate(size());
-     // TODO if using exceptions, throw bad_alloc on nullptr
-     details_::uninit_assign_n(begin(), size(), new_data);
-     std::destroy(begin(), end());
-     get_allocator().deallocate(impl_.external_.data_, impl_.external_.capacity_);
-     impl_.external_.data_ = new_data;
-     impl_.external_.capacity_ = impl_.count_;
+     impl_.shrink_to_fit();
    }
 
    void clear() noexcept { 
@@ -548,83 +626,12 @@ class SBOVector {
    }
 
    template<int OtherSize, typename OtherAllocator, typename = std::enable_if_t<!std::is_same_v<Allocator, OtherAllocator>>>
-   void swap(SBOVector<DataType, OtherSize, OtherAllocator>& that) {
-     // TODO: Optimize Considerably
-     SBOVector<DataType, OtherSize, OtherAllocator> copy_that(that);
-     that.clear();
-     that.insert(that.begin(), begin(), end());
-     clear();
-     insert(begin(), copy_that.begin(), copy_that.end());
-   }
+   void swap(SBOVector<DataType, OtherSize, OtherAllocator>& that) { impl_.swap_cross(that.impl_); }
 
    template<size_t OtherSize, typename = std::enable_if_t<OtherSize != BufferSize>>
-   void swap(SBOVector<DataType, OtherSize, Allocator>& that) {
-     auto& this_impl = impl_;
-     auto& that_impl = that.impl_;
-     auto largest_buffer = std::max(BufferSize, OtherSize);
-     auto smallest_buffer = std::min(BufferSize, OtherSize);
-     if (this_impl.count_ > largest_buffer &&
-         that_impl.count_ > largest_buffer) {
-       swap_external_buffers(that);
-     } else if (this_impl.count_ <= smallest_buffer &&
-                that_impl.count_ <= smallest_buffer) {
-       swap_inline_buffers(that);
-     } else {
-       // TODO this can be optimized considerably
-       SBOVector copy_that(that.begin(), that.end(), get_allocator());
-       that = *this;
-       *this = copy_that;
-     }
-   }
+   void swap(SBOVector<DataType, OtherSize, Allocator>& that) { impl_.swap(that.impl_); }
 
-   void swap(SBOVector& that) {
-     auto& this_impl = impl_;
-     auto& that_impl = that.impl_;
-     if (this_impl.count_ > BufferSize && that_impl.count_ > BufferSize) {
-       swap_external_buffers(that);
-     } else if (this_impl.count_ <= BufferSize && that_impl.count_ <= BufferSize) {
-       swap_inline_buffers(that);
-     } else {
-       // Cross Inline/External
-       auto& large_impl =
-           (this_impl.count_ > that_impl.count_ ? this_impl : that_impl);
-       auto& small_impl =
-           (this_impl.count_ > that_impl.count_ ? that_impl : this_impl);
-       auto large_ptr = large_impl.external_.data_;
-       auto large_cap = large_impl.external_.capacity_;
-       new (&large_impl.inline_) decltype(large_impl.inline_)();
-       details_::uninit_assign_n(small_impl.re_inline(), small_impl.count_,
-                                 large_impl.re_inline());
-       std::destroy_n(small_impl.re_inline(),
-                      small_impl.count_);
-       small_impl.external_.data_ = large_ptr;
-       small_impl.external_.capacity_ = large_cap;
-       std::swap(large_impl.count_, small_impl.count_);
-     }
-   }
-
-  private:
-
-   template<typename Other>
-   inline void swap_inline_buffers(Other& that) {
-     auto& this_impl = impl_;
-     auto& that_impl = that.impl_;
-     if (this_impl.count_ > that_impl.count_) {
-       this_impl.inline_swap(that_impl);
-     } else {
-       that_impl.inline_swap(this_impl);
-     }
-   }
-
-   template<size_t OtherSize>
-   inline void swap_external_buffers(
-       SBOVector<DataType, OtherSize, Allocator>& that) {
-     auto& this_impl = this->impl_;
-     auto& that_impl = that.impl_;
-     std::swap(this_impl.count_, that_impl.count_);
-     std::swap(this_impl.external_.data_, that_impl.external_.data_);
-     std::swap(this_impl.external_.capacity_, that_impl.external_.capacity_);
-   }
+   void swap(SBOVector& that) { impl_.swap(that.impl_); }
 
    friend class SBOVector;
 };
