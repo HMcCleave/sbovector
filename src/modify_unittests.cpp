@@ -356,7 +356,7 @@ TEST(ValueVerifiedSBOVector, MustInsertList) {
 }
 
 TYPED_TEST(SBOVector_1, MustEmplace) {
-  if constexpr (!std::is_same_v<DataType, NoMove>) {
+  {
     {  // Small Container
       ContainerType small(SMALL_SIZE);
       auto out = small.emplace(small.begin(), DataType());
@@ -615,7 +615,7 @@ TEST(ValueVerifiedSBOVector, MustPushBackCopy) {
 }
 
 TYPED_TEST(SBOVector_1, MustPushBackMove) {
-  if constexpr(!std::is_same_v<DataType, NoMove>) {
+  {
     {
       ContainerType empty;
       empty.push_back(DataType());

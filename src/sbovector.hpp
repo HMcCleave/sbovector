@@ -84,36 +84,6 @@ struct SBOVectorBase<DataType, BufferSize, Allocator, false> {
   Allocator get_allocator() const { return alloc_; }
 };
 
-
-template<typename DataType>
-inline void uninit_assign_n(DataType* src, size_t count, DataType* dest) {
-  if constexpr (std::is_trivial_v<DataType>) {
-    memcpy(dest, src, sizeof(DataType) * count);
-  } else if constexpr (std::is_move_constructible_v<DataType>) {
-    std::uninitialized_move_n(src, count, dest);
-  } else {
-    std::uninitialized_copy_n(src, count, dest);
-  }
-}
-
-template<typename DataType>
-inline void assign_backward_n(DataType* src, size_t count, DataType* dest) {
-  if constexpr (std::is_move_assignable_v<DataType>) {
-    std::move_backward(src, src + count, dest);
-  } else {
-    std::copy_backward(src, src + count, dest);
-  }
-}
-
-template<typename DataType>
-inline void assign_n(DataType* src, size_t count, DataType* dest) {
-  if constexpr (std::is_move_assignable_v<DataType>) {
-    std::move(src, src + count, dest);
-  } else {
-    std::copy(src, src + count, dest);
-  }
-}
-
 template<typename DataType, size_t BufferSize, typename Allocator>
 struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
   using BaseType = SBOVectorBase<DataType, BufferSize, Allocator>;
@@ -150,9 +120,9 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     auto new_size = count_ + insert_count;
     auto uninit_count = std::min(count_ - pos, insert_count);
     auto assign_count = count_ - (pos + uninit_count);
-    uninit_assign_n(end() - uninit_count, uninit_count,
+    std::uninitialized_move_n(end() - uninit_count, uninit_count,
                     begin() + new_size - uninit_count);
-    assign_backward_n(begin() + pos, assign_count, end());
+    std::move_backward(begin() + pos, begin() + pos + assign_count, end());
     std::destroy_n(begin() + pos, count_ - (pos + assign_count));
     count_ += insert_count;
   }
@@ -161,8 +131,8 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     size_t new_size = count_ + insert_count;
     DataType* new_buffer = get_allocator().allocate(new_size);
     // TODO: throw bad_alloc on nullptr if using exceptions
-    uninit_assign_n(begin(), pos, new_buffer);
-    uninit_assign_n(begin() + pos, count_ - pos,
+    std::uninitialized_move_n(begin(), pos, new_buffer);
+    std::uninitialized_move_n(begin() + pos, count_ - pos,
                     new_buffer + pos + insert_count);
     clear();
     count_ = new_size;
@@ -192,7 +162,7 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     auto external_ptr_copy = external_.data_;
     auto external_capacity_copy = external_.capacity_;
     new (&inline_) decltype(inline_)();
-    uninit_assign_n(external_ptr_copy, count_, inline_as_datatype());
+    std::uninitialized_move_n(external_ptr_copy, count_, inline_as_datatype());
     std::destroy_n(external_ptr_copy, count_);
     get_allocator().deallocate(external_ptr_copy, external_capacity_copy);
   }
@@ -203,24 +173,11 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     // requirement count_ <= OtherSize AND small.count_ <= BufferSize
     auto& large_impl = *this;
     auto& small_impl = smaller;
-    for (auto i = 0u; i < small_impl.count_; ++i) {
-      if constexpr (std::is_swappable_v<DataType>) {
-        std::swap<DataType>(*(large_impl.inline_as_datatype() + i),
-                            *(small_impl.inline_as_datatype() + i));
-      } else {
-        std::aligned_storage_t<sizeof(DataType), alignof(DataType)> temp;
-        auto p_temp = reinterpret_cast<DataType*>(&temp);
-        uninit_assign_n(large_impl.inline_as_datatype() + i, 1, p_temp);
-        assign_backward_n(small_impl.inline_as_datatype() + i, 1,
-                          large_impl.inline_as_datatype() + i);
-        assign_backward_n(p_temp, 1, small_impl.inline_as_datatype() + i);
-        std::destroy_at(p_temp);
-      }
-    }
+    std::swap_ranges(small_impl.begin(), small_impl.end(), large_impl.begin());
     {
       auto start = small_impl.count_;
       auto count = large_impl.count_ - small_impl.count_;
-      uninit_assign_n(large_impl.inline_as_datatype() + start,
+      std::uninitialized_move_n(large_impl.inline_as_datatype() + start,
           count,
           small_impl.inline_as_datatype() + start);
       std::destroy_n(large_impl.inline_as_datatype() + start,
@@ -247,8 +204,8 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     auto new_this_size = that.count_;
     auto new_that = that.access_allocator().allocate(count_);
     auto new_that_size = count_;
-    uninit_assign_n(that.begin(), that.count_, new_this);
-    uninit_assign_n(begin(), count_, new_that);
+    std::uninitialized_move_n(that.begin(), that.count_, new_this);
+    std::uninitialized_move_n(begin(), count_, new_that);
     clear();
     that.clear();
     std::destroy_at(&inline_);
@@ -306,7 +263,7 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     capacity = std::max(capacity, count_ * kSBOVectorGrowthFactor);
     DataType* new_data = access_allocator().allocate(capacity);
     // TODO if using exceptions, throw bad_alloc on nullptr
-    details_::uninit_assign_n(begin(), count_, new_data);
+    std::uninitialized_move_n(begin(), count_, new_data);
     std::destroy(begin(), end());
     if (count_ > BufferSize) {
       access_allocator().deallocate(external_.data_, external_.capacity_);
@@ -320,7 +277,7 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     // requires count_ < external_.capacity_
     DataType* new_data = get_allocator().allocate(count_);
     // TODO if using exceptions, throw bad_alloc on nullptr
-    uninit_assign_n(begin(), count_, new_data);
+    std::uninitialized_move_n(begin(), count_, new_data);
     std::destroy(begin(), end());
     get_allocator().deallocate(external_.data_,
                                external_.capacity_);
@@ -332,8 +289,7 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     const auto must_internalize =
         (count_ > BufferSize) && (count_ - count) <= BufferSize;
     auto i_pos = std::distance(const_cast<const DataType*>(begin()), pos);
-    assign_n(begin() + i_pos + count, count_ - (i_pos + count),
-             begin() + i_pos);
+    std::move(begin() + i_pos + count, end(), begin() + i_pos);
     std::destroy_n(begin() + (count_ - count), count);
     count_ -= count;
     if (must_internalize)
@@ -521,7 +477,6 @@ class SBOVector {
      return insert(pos, 1, v);
    }
 
-   template<typename = std::enable_if_t<std::is_move_constructible_v<DataType>>>
    iterator insert(const_iterator pos, DataType&& mv) {
      size_t i_pos = std::distance(cbegin(), pos);
      impl_.insert_unninitialized(i_pos, 1);
@@ -572,7 +527,6 @@ class SBOVector {
      insert(end(), value);
    }
 
-   template<typename = std::enable_if_t<std::is_move_constructible_v<DataType>>>
    void push_back(DataType&& value) { emplace(end(), std::move(value)); }
 
    template <typename... Args>

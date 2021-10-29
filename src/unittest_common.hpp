@@ -71,24 +71,14 @@ class NonTrivial {
   NonTrivial& operator=(NonTrivial&&) noexcept { return *this; }
 };
 
-class NoMove {
+class MoveOnly {
  public:
-  NoMove() {}
-  ~NoMove() {}
-  NoMove(const NoMove&) {}
-  NoMove(NoMove&&) = delete;
-  NoMove& operator=(const NoMove&) { return *this; }
-  NoMove& operator=(NoMove&&) = delete;
-};
-
-class NoCopy {
- public:
-  NoCopy() {}
-  ~NoCopy() {}
-  NoCopy(const NoCopy&) = delete;
-  NoCopy(NoCopy&&) noexcept {}
-  NoCopy& operator=(const NoCopy&) = delete;
-  NoCopy& operator=(NoCopy&&) noexcept {}
+  MoveOnly() {}
+  ~MoveOnly() {}
+  MoveOnly(const MoveOnly&) = delete;
+  MoveOnly(MoveOnly&&) noexcept {}
+  MoveOnly& operator=(const MoveOnly&) = delete;
+  MoveOnly& operator=(MoveOnly&&) noexcept {}
 };
 
 struct OperationCounter {
@@ -235,15 +225,13 @@ struct DataTypeOperationTrackingSBOVector : public ::testing::Test {
 
 typedef ::testing::Types<TypeHelper<Trivial>,
                          TypeHelper<Trivial, CustomAllocator<Trivial>>,
-                         TypeHelper<NonTrivial>,
-                         TypeHelper<NoMove>>
+                         TypeHelper<NonTrivial>>
     OldGenericTestCases;
 
 typedef ::testing::Types<TypeHelper<Trivial>,
                          TypeHelper<Trivial, CustomAllocator<Trivial>>,
                          TypeHelper<NonTrivial>,
-                         TypeHelper<NoMove>,
-                         TypeHelper<NoCopy>>
+                         TypeHelper<MoveOnly>>
     GenericTestCases;
 
 template<typename T>
