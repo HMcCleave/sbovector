@@ -1,4 +1,4 @@
-add_executable(benchmarks benchmarks.cpp sbovector.hpp)
+add_executable(benchmarks benchmarks.cpp sbovector.hpp sbovector_old.hpp)
 target_link_libraries(benchmarks PRIVATE BenchmarkSettings)
 
 CREATE_UNITTEST(all 
