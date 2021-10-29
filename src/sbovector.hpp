@@ -87,6 +87,7 @@ struct SBOVectorBase<DataType, BufferSize, Allocator, false> {
 template<typename DataType, size_t BufferSize, typename Allocator>
 struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
   using BaseType = SBOVectorBase<DataType, BufferSize, Allocator>;
+  static const size_t BufferSize = BufferSize;
   VectorImpl() : BaseType() {}
   VectorImpl(const Allocator& alloc) : BaseType(alloc) {}
 
@@ -171,57 +172,88 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     get_allocator().deallocate(external_ptr_copy, external_capacity_copy);
   }
 
-  template <size_t OtherSize, typename OA>
-  void inline_swap(VectorImpl<DataType, OtherSize, OA>& smaller) {
-    // requirement count_ >= smaller.count_
-    // requirement count_ <= min(OtherSize, BufferSize)
-    auto& large_impl = *this;
-    auto& small_impl = smaller;
-    std::swap_ranges(small_impl.begin(), small_impl.end(), large_impl.begin());
-    {
-      auto start = small_impl.count_;
-      auto count = large_impl.count_ - small_impl.count_;
-      std::uninitialized_move_n(large_impl.inline_as_datatype() + start,
-          count,
-          small_impl.inline_as_datatype() + start);
-      std::destroy_n(large_impl.inline_as_datatype() + start,
-                     count);
-    }
-    std::swap(count_, smaller.count_);
-  }
-
   template<size_t OtherSize>
-  void external_swap(VectorImpl<DataType, OtherSize, Allocator>& other) {
+  inline void external_swap(VectorImpl<DataType, OtherSize, Allocator>& other) {
     std::swap(count_, other.count_);
     std::swap(external_.data_, other.external_.data_);
     std::swap(external_.capacity_, other.external_.capacity_);
   }
 
+ private:
+  template<typename C1, typename C2>
+  inline static void no_alloc_swap(C1& A, C2& B) {
+    auto small_size = std::min(A.count_, B.count_);
+    auto size_diff = std::max(A.count_, B.count_) - small_size;
+
+    DataType* source = A.begin() + small_size;
+    DataType* sink = B.begin() + small_size;
+
+    std::swap_ranges(A.begin(), source, B.begin());
+
+    if (A.count_ == small_size) {
+      std::swap(source, sink);
+    }
+
+    std::uninitialized_move_n(source, size_diff, sink);
+    std::destroy_n(source, size_diff);
+    std::swap(A.count_, B.count_);
+  }
+
+  template<typename C1, typename C2>
+  inline static void one_alloc_swap(C1& allocating, C2& remaining) {
+    auto new_data = allocating.access_allocator().allocate(remaining.count_);
+    auto new_data_size = remaining.count_;
+    std::uninitialized_move_n(remaining.begin(), new_data_size, new_data);
+    std::destroy(remaining.begin(), remaining.end()); // could be benificial here to add branches to save destructions on complicated types
+    std::uninitialized_move_n(allocating.begin(), allocating.count_,
+                              remaining.begin());
+    if (remaining.count_ > C2::BufferSize &&
+        allocating.count_ <= C2::BufferSize) {
+      remaining.count_ = allocating.count_;
+      remaining.internalize();
+    } else {
+      remaining.count_ = allocating.count_;
+    }
+    allocating.clear();
+    std::destroy_at(&allocating.inline_);
+    allocating.count_ = allocating.external_.capacity_ = new_data_size;
+    allocating.external_.data_ = new_data;
+  }
+
+ public:
   template<size_t OtherSize, typename OtherAllocator>
-  void swap_cross(VectorImpl<DataType, OtherSize, OtherAllocator>& that) {
-    const auto this_will_be_inline = (that.count_ <= BufferSize);
-    const auto that_will_be_inline = (count_ <= OtherSize);
+  inline void swap_cross(VectorImpl<DataType, OtherSize, OtherAllocator>& that) {
+    const auto this_is_sufficient = (capacity() >= that.count_);
+    const auto that_is_sufficient = (that.capacity() >= count_);
 
-    // todo still optimization available here
-    auto new_this = access_allocator().allocate(that.count_);
-    auto new_this_size = that.count_;
-    auto new_that = that.access_allocator().allocate(count_);
-    auto new_that_size = count_;
-    std::uninitialized_move_n(that.begin(), that.count_, new_this);
-    std::uninitialized_move_n(begin(), count_, new_that);
-    clear();
-    that.clear();
-    std::destroy_at(&inline_);
-    std::destroy_at(&that.inline_);
-    that.external_.capacity_ = that.count_ = new_that_size;
-    that.external_.data_ = new_that;
-    if (that_will_be_inline)
-      that.internalize();
-    external_.capacity_ = count_ = new_this_size;
-    external_.data_ = new_this;
-    if (this_will_be_inline)
-      internalize();
-
+    if (this_is_sufficient && that_is_sufficient) {
+      no_alloc_swap(*this, that);
+      if (count_ <= BufferSize && that.count_ > BufferSize)
+        internalize();
+      if (that.count_ <= OtherSize && count_ > OtherSize)
+        that.internalize();
+    } else if (this_is_sufficient) {
+      one_alloc_swap(that, *this);
+    } else if (that_is_sufficient) {
+      one_alloc_swap(*this, that);
+    } else {
+      auto new_this = access_allocator().allocate(that.count_);
+      auto new_this_size = that.count_;
+      auto new_that = that.access_allocator().allocate(count_);
+      auto new_that_size = count_;
+      std::uninitialized_move_n(that.begin(), that.count_, new_this);
+      std::uninitialized_move_n(begin(), count_, new_that);
+      clear();
+      that.clear();
+      std::destroy_at(&inline_);
+      std::destroy_at(&that.inline_);
+      that.external_.capacity_ = that.count_ = new_that_size;
+      that.external_.data_ = new_that;
+      external_.capacity_ = count_ = new_this_size;
+      external_.data_ = new_this;
+      // No internalizations are possible here as capacity has a lower bound
+      // and this and that are both insufficiant
+    }
   }
 
   template<size_t OtherSize>
@@ -231,22 +263,14 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     const auto this_will_be_inline = (that.count_ <= BufferSize);
     const auto that_will_be_inline = (count_ <= OtherSize);
 
-    const auto min_size = std::min(count_, that.count_);
-    const auto max_size = std::max(count_, that.count_);
-
     if (!(this_is_inline || that_is_inline)) {
       external_swap(that);
       if (this_will_be_inline)
         internalize();
       if (that_will_be_inline)
         that.internalize();
-    } else if (this_is_inline && that_is_inline && this_will_be_inline &&
-        that_will_be_inline) {
-      if (count_ < that.count_) {
-        that.inline_swap(*this);
-      } else {
-        inline_swap(that);
-      }
+    } else if (this_is_inline && that_is_inline && this_will_be_inline && that_will_be_inline) {
+      no_alloc_swap(*this, that);
     } else {
       swap_cross(that);
     }
