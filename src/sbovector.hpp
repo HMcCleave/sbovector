@@ -328,7 +328,9 @@ class SBOVector {
      insert(begin(), count, value);
    }
 
-   explicit SBOVector(size_t count, const Allocator& alloc = Allocator()) : SBOVector(count, DataType(), alloc) {}
+   explicit SBOVector(size_t count, const Allocator& alloc = Allocator()) : SBOVector(alloc) {
+     resize(count);
+   }
 
    template <typename InputIter, typename = std::enable_if_t<details_::is_iterator_v<InputIter>>>
    SBOVector(InputIter p_begin, InputIter p_end, const Allocator& alloc = Allocator()) : impl_(alloc) {
@@ -537,10 +539,14 @@ class SBOVector {
    void pop_back() { erase(begin() + size() - 1); }
 
    void resize(size_t count) {
-     if (size() > count)
-       erase(end() - (size() - count), end());
-     else if (size() < count) {
-       insert(end(), count - size(), DataType());
+     auto old_size = size();
+     if (old_size > count)
+       erase(end() - (old_size - count), end());
+     else if (old_size < count) {
+       impl_.insert_unninitialized(old_size, count - old_size);
+       for (auto iter = begin() + old_size; iter != end(); ++iter) {
+         new (iter) DataType();
+       }
      }
    }
 
