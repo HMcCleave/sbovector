@@ -152,9 +152,8 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     auto assign_count = count_ - (pos + uninit_count);
     uninit_assign_n(end() - uninit_count, uninit_count,
                     begin() + new_size - uninit_count);
-    assign_backward(
-        begin() + pos, pos + assign_count, end() - 1);
-    std::destroy_n(begin() + pos, std::min(insert_count, count_ - pos));
+    assign_backward_n(begin() + pos, assign_count, end());
+    std::destroy_n(begin() + pos, count_ - (pos + assign_count));
     count_ += insert_count;
   }
 
@@ -519,34 +518,33 @@ class SBOVector {
    }
 
    iterator insert(const_iterator pos, const DataType& v) { 
-     return insert(pos, &v, (&v) + 1);
+     return insert(pos, 1, v);
    }
 
-   iterator insert(const_iterator pos, DataType&& todo_move) {
-     DataType t(todo_move);
-     return insert(pos, t);
+   template<typename = std::enable_if_t<std::is_move_constructible_v<DataType>>>
+   iterator insert(const_iterator pos, DataType&& mv) {
+     size_t i_pos = std::distance(cbegin(), pos);
+     impl_.insert_unninitialized(i_pos, 1);
+     auto out = begin() + i_pos;
+     new (out) DataType(std::move(mv));
+     return out;
    }
 
    iterator insert(const_iterator pos, size_t count, const DataType& v) {
-     std::vector<DataType> temp(count, v);
-     return insert(pos, temp.begin(), temp.end());
+     size_t i_pos = std::distance(cbegin(), pos);
+     impl_.insert_unninitialized(i_pos, count);
+     std::uninitialized_fill_n(begin() + i_pos, count, v);
+     return begin() + i_pos;
    }
 
    template<typename InputIt, typename = std::enable_if_t<details_::is_iterator_v<InputIt>>>
    iterator insert(const_iterator pos, InputIt p_begin, InputIt p_end) {
-     SBOVector temp(get_allocator());
-     for (auto iter = cbegin(); iter != pos; ++iter) {
-       temp.push_back(*iter);
+     size_t i_pos = std::distance(cbegin(), pos);
+     impl_.insert_unninitialized(i_pos, std::distance(p_begin, p_end));
+     for (auto iter = begin() + i_pos; p_begin != p_end; ++p_begin, ++iter) {
+       new (iter) DataType(*p_begin);
      }
-     for (auto iter = p_begin; iter != p_end; ++iter) {
-       temp.push_back(*iter);
-     }
-     for (auto iter = pos; iter != cend(); ++iter) {
-       temp.push_back(*iter);
-     }
-     auto dist = std::distance(cbegin(), pos);
-     swap(temp);
-     return begin() + dist;
+     return begin() + i_pos;
    }
 
    iterator insert(const_iterator pos, std::initializer_list<DataType> list) {
@@ -554,18 +552,12 @@ class SBOVector {
    }
 
    template <typename... Args>
-   iterator emplace(const_iterator ppos, Args&&... args) {
-     size_t pos = std::distance(cbegin(), ppos);
-     SBOVector temp(get_allocator());
-     for (auto iter = cbegin(); iter != ppos; ++iter) {
-       temp.push_back(*iter);
-     }
-     temp.emplace_back(std::forward<Args>(args)...);
-     for (auto iter = ppos; iter != cend(); ++iter) {
-       temp.push_back(*iter);
-     }
-     swap(temp);
-     return begin() + pos;
+   iterator emplace(const_iterator pos, Args&&... args) {
+     size_t i_pos = std::distance(cbegin(), pos);
+     impl_.insert_unninitialized(i_pos, 1);
+     auto out = begin() + i_pos;
+     new (out) DataType(std::forward<Args>(args)...);
+     return out;
    }
 
    iterator erase(const_iterator pos) { 
@@ -577,26 +569,15 @@ class SBOVector {
    }
 
    void push_back(const DataType& value) {
-     if (size() == capacity())
-       impl_.reserve(size() + 1);
-     ++impl_.count_;
-     new (&back()) DataType(value);
+     insert(end(), value);
    }
 
-   void push_back(DataType&& value) {
-     if (size() == capacity())
-       impl_.reserve(size() + 1);
-     ++impl_.count_;
-     new (&back()) DataType(std::forward<DataType>(value));
-   }
+   template<typename = std::enable_if_t<std::is_move_constructible_v<DataType>>>
+   void push_back(DataType&& value) { emplace(end(), std::move(value)); }
 
    template <typename... Args>
    reference emplace_back(Args&&... args) {
-     if (size() == capacity())
-       impl_.reserve(size() + 1);
-     ++impl_.count_;
-     new (&back()) DataType(std::forward<Args>(args)...);
-     return back();
+     return *emplace(end(), std::forward<Args>(args)...);
    }
 
    void pop_back() { erase(begin() + size() - 1); }
