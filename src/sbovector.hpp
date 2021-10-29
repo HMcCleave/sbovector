@@ -95,13 +95,17 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
   }
 
   DataType* begin() {
-    return (count_ <= BufferSize ? inline_as_datatype()
-                                 : external_.data_);
+    if (count_ <= BufferSize) {
+      return inline_as_datatype();
+    }
+    return external_.data_;
   }
 
   const DataType* begin() const {
-    return (count_ <= BufferSize ? reinterpret_cast<const DataType*>(inline_.data())
-                                 : external_.data_);
+    if (count_ <= BufferSize) {
+      return reinterpret_cast<const DataType*>(inline_.data());
+    }
+    return external_.data_;
   }
 
   DataType* end() { return begin() + count_; }
@@ -525,14 +529,26 @@ class SBOVector {
    }
 
    void push_back(const DataType& value) {
-     insert(end(), value);
+     if (size() == capacity())
+       impl_.reserve(size() + 1);
+     ++impl_.count_;
+     new (&back()) DataType(value);
    }
 
-   void push_back(DataType&& value) { emplace(end(), std::move(value)); }
+   void push_back(DataType&& value) {
+     if (size() == capacity())
+       impl_.reserve(size() + 1);
+     ++impl_.count_;
+     new (&back()) DataType(std::move(value));
+   }
 
    template <typename... Args>
    reference emplace_back(Args&&... args) {
-     return *emplace(end(), std::forward<Args>(args)...);
+     if (size() == capacity())
+       impl_.reserve(size() + 1);
+     ++impl_.count_;
+     new (&back()) DataType(std::forward<Args>(args)...);
+     return back();
    }
 
    void pop_back() { erase(begin() + size() - 1); }
