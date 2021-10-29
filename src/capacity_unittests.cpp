@@ -2,7 +2,7 @@
 
 // Unittests for capacity related methods (capacity, reserve, shrink_to_fit)
 
-TYPED_TEST(SBOVector_1, MustReserveIfExternal) {
+TYPED_TEST(SBOVector_, MustReserveIfExternal) {
   ContainerType container(LARGE_SIZE);
   container.reserve_if_external(LARGE_SIZE * 2);
   EXPECT_EQ(container.capacity(), LARGE_SIZE * 2);
@@ -14,7 +14,7 @@ TEST_F(DataTypeOperationTrackingSBOVector, MustReserveIfExternal) {
   UseElements(container);
 }
 
-TYPED_TEST(SBOVector_1, MustShrinkToFitIfExternal) {
+TYPED_TEST(SBOVector_, MustShrinkToFitIfExternal) {
   ContainerType container(LARGE_SIZE);
   container.reserve_if_external(LARGE_SIZE * 2);
   container.shrink_to_fit_if_external();

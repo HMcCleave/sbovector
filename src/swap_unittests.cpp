@@ -2,7 +2,7 @@
 
 // Unittests for swap methods
 
-TYPED_TEST(SBOVector_1, MustSwap) {
+TYPED_TEST(SBOVector_, MustSwap) {
   { 
     ContainerType a;
     ContainerType b(SMALL_SIZE);
@@ -57,7 +57,7 @@ TEST(ValueVerifiedSBOVector, MustSwap) {
   }
 }
 
-TYPED_TEST(SBOVector_1, MustSwapAsymmetric) {
+TYPED_TEST(SBOVector_, MustSwapAsymmetric) {
   { // inline to insufficient inline
     ContainerType a(SBO_SIZE);
     SBOVector<DataType, SMALL_SIZE, AllocatorType> b(SMALL_SIZE);

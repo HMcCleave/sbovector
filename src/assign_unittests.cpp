@@ -1,7 +1,7 @@
 #include "unittest_common.hpp"
 
 // Unittests for operator=, assign methods
-TYPED_TEST(SBOVector_1, MustCopyAssign) {
+TYPED_TEST(CopyableSBOVector_, MustCopyAssign) {
   {
     const ContainerType original(SMALL_SIZE);
     ContainerType copy;
@@ -73,7 +73,7 @@ TEST(ValueVerifiedSBOVector, MustCopyAssign) {
   }
 }
 
-TYPED_TEST(SBOVector_1, MustMoveAssign) {
+TYPED_TEST(SBOVector_, MustMoveAssign) {
   {
     {
       ContainerType original(SMALL_SIZE);
@@ -144,7 +144,7 @@ TEST(ValueVerifiedSBOVector, MustMoveAssign) {
   }
 }
 
-TYPED_TEST(SBOVector_1, MustAssignFromInitializerList) {
+TYPED_TEST(CopyableSBOVector_, MustAssignFromInitializerList) {
   std::initializer_list<DataType> il{DataType(), DataType(), DataType()};
   ContainerType operated;
   ContainerType methoded;
@@ -176,7 +176,7 @@ TEST(ValueVerifiedSBOVector, MustAssignFromInitializerList) {
   EXPECT_RANGE_EQ(methoded, il);
 }
 
-TYPED_TEST(SBOVector_1, MustAssignCountOfValues) {
+TYPED_TEST(CopyableSBOVector_, MustAssignCountOfValues) {
   ContainerType container;
 
   // inline -> inline
@@ -233,7 +233,7 @@ TEST(ValueVerifiedSBOVector, MustAssignCountOfValues) {
   EXPECT_RANGE_EQ(vec, sbo);
 }
 
-TYPED_TEST(SBOVector_1, MustAssignRange) {
+TYPED_TEST(CopyableSBOVector_, MustAssignRange) {
   std::vector<DataType> vec;
   ContainerType container;
 

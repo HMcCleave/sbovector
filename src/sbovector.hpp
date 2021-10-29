@@ -325,7 +325,7 @@ class SBOVector {
 
    SBOVector(size_t count, const DataType& value, const Allocator& alloc = Allocator())
        : impl_(alloc) {
-     insert(begin(), count, value);
+     resize(count, value);
    }
 
    explicit SBOVector(size_t count, const Allocator& alloc = Allocator()) : SBOVector(alloc) {

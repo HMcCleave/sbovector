@@ -78,7 +78,7 @@ class MoveOnly {
   MoveOnly(const MoveOnly&) = delete;
   MoveOnly(MoveOnly&&) noexcept {}
   MoveOnly& operator=(const MoveOnly&) = delete;
-  MoveOnly& operator=(MoveOnly&&) noexcept {}
+  MoveOnly& operator=(MoveOnly&&) noexcept { return *this; }
 };
 
 struct OperationCounter {
@@ -226,20 +226,20 @@ struct DataTypeOperationTrackingSBOVector : public ::testing::Test {
 typedef ::testing::Types<TypeHelper<Trivial>,
                          TypeHelper<Trivial, CustomAllocator<Trivial>>,
                          TypeHelper<NonTrivial>>
-    OldGenericTestCases;
+    CopyableTestCases;
 
 typedef ::testing::Types<TypeHelper<Trivial>,
                          TypeHelper<Trivial, CustomAllocator<Trivial>>,
                          TypeHelper<NonTrivial>,
                          TypeHelper<MoveOnly>>
-    GenericTestCases;
+    AllTestCases;
 
 template<typename T>
-using SBOVector_1 = SBOVector_<T>;
+using CopyableSBOVector_ = SBOVector_<T>;
 
 
-TYPED_TEST_CASE(SBOVector_, GenericTestCases);
-TYPED_TEST_CASE(SBOVector_1, OldGenericTestCases);
+TYPED_TEST_CASE(SBOVector_, AllTestCases);
+TYPED_TEST_CASE(CopyableSBOVector_, CopyableTestCases);
 
 template <typename Range1, typename Range2>
 void EXPECT_RANGE_EQ(const Range1& A, const Range2& B) {

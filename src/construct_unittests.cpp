@@ -2,7 +2,7 @@
 
 // Unit tests for the various Constructors of SBOVector
 
-TYPED_TEST(SBOVector_1, MustDefaultConstruct) {
+TYPED_TEST(SBOVector_, MustDefaultConstruct) {
   ContainerType container{};
   EXPECT_EQ(container.size(), 0);
   EXPECT_TRUE(container.empty());
@@ -14,7 +14,7 @@ TEST_F(DataTypeOperationTrackingSBOVector, MustDefaultConstructWithAllocator) {
   EXPECT_TRUE(container.empty());
 }
 
-TYPED_TEST(SBOVector_1, MustConstructCount) {
+TYPED_TEST(SBOVector_, MustConstructCount) {
   ContainerType small(SMALL_SIZE);
   EXPECT_EQ(small.size(), SMALL_SIZE);
   EXPECT_EQ(small.capacity(), SBO_SIZE);
@@ -64,7 +64,7 @@ TEST(ValueVerifiedSBOVector, MustConstructCountValue) {
   }
 }
 
-TYPED_TEST(SBOVector_1, MustConstructFromInitializerList) {
+TYPED_TEST(CopyableSBOVector_, MustConstructFromInitializerList) {
   std::initializer_list<DataType> list{
       DataType(), DataType(), DataType(), DataType(),
       DataType(), DataType(), DataType(), DataType(),
@@ -92,7 +92,7 @@ TEST(ValueVerifiedSBOVector, MustConstructFromInitializerList) {
   EXPECT_RANGE_EQ(sbo, vec);
 }
 
-TYPED_TEST(SBOVector_1, MustConstructFromRange) {
+TYPED_TEST(CopyableSBOVector_, MustConstructFromRange) {
   {
     std::vector<DataType> vec(SMALL_SIZE);
     ContainerType container(vec.begin(), vec.end());
@@ -133,7 +133,7 @@ TEST(ValueVerifiedSBOVector, MustConstructFromRange) {
   }
 }
 
-TYPED_TEST(SBOVector_1, MustCopyConstruct) {
+TYPED_TEST(CopyableSBOVector_, MustCopyConstruct) {
   {
     const ContainerType old(SMALL_SIZE);
     ContainerType new_(old);
@@ -197,7 +197,7 @@ TEST(ValueVerifiedSBOVector, MustCopyConstruct) {
   }
 }
 
-TYPED_TEST(SBOVector_1, MustMoveConstruct) {
+TYPED_TEST(SBOVector_, MustMoveConstruct) {
   {
     ContainerType old(SMALL_SIZE);
     ContainerType new_(std::move(old));

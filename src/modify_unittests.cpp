@@ -2,7 +2,7 @@
 
 // Unittests for insert, erase, push/pop _back, emplace, clear, resize methods
 
-TYPED_TEST(SBOVector_1, MustInsertSingleCopy) {
+TYPED_TEST(CopyableSBOVector_, MustInsertSingleCopy) {
   const DataType t{};
   {  // Small Container
     ContainerType small(SMALL_SIZE);
@@ -70,7 +70,7 @@ TEST(ValueVerifiedSBOVector, MustInsertSingleCopy) {
   }
 }
 
-TYPED_TEST(SBOVector_1, MustInsertSingleMove) {
+TYPED_TEST(SBOVector_, MustInsertSingleMove) {
   {
     {  // Small Container
       ContainerType small(SMALL_SIZE);
@@ -141,7 +141,7 @@ TEST(ValueVerifiedSBOVector, MustInsertSingleMove) {
   }
 }
 
-TYPED_TEST(SBOVector_1, MustInsertCountCopies) {
+TYPED_TEST(CopyableSBOVector_, MustInsertCountCopies) {
   const DataType t{};
   {  // Small Container
     ContainerType small(SMALL_SIZE);
@@ -211,7 +211,7 @@ TEST(ValueVerifiedSBOVector, MustInsertCountCopies) {
   }
 }
 
-TYPED_TEST(SBOVector_1, MustInsertRange) {
+TYPED_TEST(CopyableSBOVector_, MustInsertRange) {
   std::vector<DataType> range(3);
   { 
     ContainerType small(SMALL_SIZE);
@@ -283,7 +283,7 @@ TEST(ValueVerifiedSBOVector, MustInsertRange) {
   }
 }
 
-TYPED_TEST(SBOVector_1, MustInsertList) {
+TYPED_TEST(CopyableSBOVector_, MustInsertList) {
   std::initializer_list<DataType> list{DataType(), DataType(), DataType()};
   {
     ContainerType small(SMALL_SIZE);
@@ -355,7 +355,7 @@ TEST(ValueVerifiedSBOVector, MustInsertList) {
   }
 }
 
-TYPED_TEST(SBOVector_1, MustEmplace) {
+TYPED_TEST(SBOVector_, MustEmplace) {
   {
     {  // Small Container
       ContainerType small(SMALL_SIZE);
@@ -422,7 +422,7 @@ TEST(ValueVerifiedSBOVector, MustEmplace) {
   }
 }
 
-TYPED_TEST(SBOVector_1, MustEraseSingleValue) {
+TYPED_TEST(SBOVector_, MustEraseSingleValue) {
   {
     ContainerType small(SMALL_SIZE);
     small.erase(small.begin() + 1);
@@ -485,7 +485,7 @@ TEST(ValueVerifiedSBOVector, MustEraseSingleValue) {
   }
 }
 
-TYPED_TEST(SBOVector_1, MustEraseRange) {
+TYPED_TEST(SBOVector_, MustEraseRange) {
   {
     ContainerType small(SMALL_SIZE);
     small.erase(small.begin() + 1, small.end());
@@ -548,7 +548,7 @@ TEST(ValueVerifiedSBOVector, MustEraseRange) {
   }
 }
 
-TYPED_TEST(SBOVector_1, MustPushBackCopy) {
+TYPED_TEST(CopyableSBOVector_, MustPushBackCopy) {
   const DataType t{};
   {
     ContainerType empty;
@@ -614,7 +614,7 @@ TEST(ValueVerifiedSBOVector, MustPushBackCopy) {
   }
 }
 
-TYPED_TEST(SBOVector_1, MustPushBackMove) {
+TYPED_TEST(SBOVector_, MustPushBackMove) {
   {
     {
       ContainerType empty;
@@ -679,28 +679,26 @@ TEST(ValueVerifiedSBOVector, MustPushBackMove) {
   }
 }
 
-TYPED_TEST(SBOVector_1, MustEmplaceBack) {
+TYPED_TEST(SBOVector_, MustEmplaceBack) {
   {
-    {
-      ContainerType empty;
-      empty.emplace_back();
-      EXPECT_EQ(empty.size(), 1);
-    }
-    {
-      ContainerType small(SMALL_SIZE);
-      small.emplace_back();
-      EXPECT_EQ(small.size(), SMALL_SIZE + 1);
-    }
-    {
-      ContainerType full(SBO_SIZE);
-      full.emplace_back();
-      EXPECT_EQ(full.size(), SBO_SIZE + 1);
-    }
-    {
-      ContainerType large(LARGE_SIZE);
-      large.emplace_back();
-      EXPECT_EQ(large.size(), LARGE_SIZE + 1);
-    }
+    ContainerType empty;
+    empty.emplace_back();
+    EXPECT_EQ(empty.size(), 1);
+  }
+  {
+    ContainerType small(SMALL_SIZE);
+    small.emplace_back();
+    EXPECT_EQ(small.size(), SMALL_SIZE + 1);
+  }
+  {
+    ContainerType full(SBO_SIZE);
+    full.emplace_back();
+    EXPECT_EQ(full.size(), SBO_SIZE + 1);
+  }
+  {
+    ContainerType large(LARGE_SIZE);
+    large.emplace_back();
+    EXPECT_EQ(large.size(), LARGE_SIZE + 1);
   }
 }
 
@@ -744,7 +742,7 @@ TEST(ValueVerifiedSBOVector, MustEmplaceBack) {
   }
 }
 
-TYPED_TEST(SBOVector_1, MustPopBack) {
+TYPED_TEST(SBOVector_, MustPopBack) {
   ContainerType container(LARGE_SIZE);
   for (int count = LARGE_SIZE; count; --count) {
     container.pop_back();
@@ -771,11 +769,11 @@ TEST(ValueVerifiedSBOVector, MustPopBack) {
   }
 }
 
-TYPED_TEST(SBOVector_1, MustResize) {
+TYPED_TEST(SBOVector_, MustResize) {
   ContainerType c(SMALL_SIZE);
   c.resize(SBO_SIZE);
   EXPECT_EQ(c.size(), SBO_SIZE);
-  c.resize(LARGE_SIZE, DataType());
+  c.resize(LARGE_SIZE);
   EXPECT_EQ(c.size(), LARGE_SIZE);
   c.resize(SMALL_SIZE);
   EXPECT_EQ(c.size(), SMALL_SIZE);
@@ -829,7 +827,7 @@ TEST(ValueVerifiedSBOVector, MustResizeCountValue) {
   EXPECT_RANGE_EQ(vec, sbo);
 }
 
-TYPED_TEST(SBOVector_1, MustClear) {
+TYPED_TEST(SBOVector_, MustClear) {
   ContainerType empty;
   ContainerType small(SMALL_SIZE);
   ContainerType large(LARGE_SIZE);

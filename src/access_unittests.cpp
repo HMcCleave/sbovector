@@ -2,7 +2,7 @@
 
 // Unittests for iteration (begin/end and variations there-of), at, front/back data, size, operator[] methods
 
-TYPED_TEST(SBOVector_1, MustIterateViaMutableBeginEnd) {
+TYPED_TEST(SBOVector_, MustIterateViaMutableBeginEnd) {
   size_t count{0};
   auto null_op = [&](DataType&) { ++count; };
   ContainerType container(SMALL_SIZE);
@@ -34,7 +34,7 @@ TEST(ValueVerifiedSBOVector, MustIterateViaMutableBeginEnd) {
   EXPECT_EQ(count, LARGE_SIZE);
 }
 
-TYPED_TEST(SBOVector_1, MustIterateViaConstBeginEnd) {
+TYPED_TEST(SBOVector_, MustIterateViaConstBeginEnd) {
   size_t count{0};
   auto null_op = [&](const DataType&) { ++count; };
   const ContainerType small(SMALL_SIZE), large(LARGE_SIZE);
@@ -64,7 +64,7 @@ TEST(ValueVerifiedSBOVector, MustIterateViaConstBeginEnd) {
   EXPECT_EQ(count, LARGE_SIZE);
 }
 
-TYPED_TEST(SBOVector_1, MustIterateViaCBeginCEnd) {
+TYPED_TEST(SBOVector_, MustIterateViaCBeginCEnd) {
   size_t count{0};
   auto null_op = [&](const DataType&) { ++count; };
   const ContainerType small(SMALL_SIZE), large(LARGE_SIZE);
@@ -96,7 +96,7 @@ TEST(ValueVerifiedSBOVector, MustIterateViaCBeginCEnd) {
   EXPECT_EQ(count, LARGE_SIZE);
 }
 
-TYPED_TEST(SBOVector_1, MustIterateViaMutableRBeginREnd) {
+TYPED_TEST(SBOVector_, MustIterateViaMutableRBeginREnd) {
   size_t count{0};
   auto null_op = [&](DataType&) { ++count; };
   ContainerType container(SMALL_SIZE);
@@ -128,7 +128,7 @@ TEST(ValueVerifiedSBOVector, MustIterateViaMutableRBeginREnd) {
   EXPECT_EQ(count, LARGE_SIZE);
 }
 
-TYPED_TEST(SBOVector_1, MustIterateViaConstRBeginREnd) {
+TYPED_TEST(SBOVector_, MustIterateViaConstRBeginREnd) {
   size_t count{0};
   auto null_op = [&](const DataType&) { ++count; };
   const ContainerType small(SMALL_SIZE), large(LARGE_SIZE);
@@ -160,7 +160,7 @@ TEST(ValueVerifiedSBOVector, MustIterateViaConstRBeginREnd) {
   EXPECT_EQ(count, LARGE_SIZE);
 }
 
-TYPED_TEST(SBOVector_1, MustIterateViaCRBeginCREnd) {
+TYPED_TEST(SBOVector_, MustIterateViaCRBeginCREnd) {
   size_t count{0};
   auto null_op = [&](const DataType&) { ++count; };
   const ContainerType small(SMALL_SIZE), large(LARGE_SIZE);
@@ -255,7 +255,7 @@ TEST(ValueVerifiedSBOVector, MustAccessViaFrontAndBack) {
   EXPECT_EQ(vec.back(), sbo.back());
 }
 
-TYPED_TEST(SBOVector_1, MustReportSize) {
+TYPED_TEST(SBOVector_, MustReportSize) {
   ContainerType empty{}, small(SMALL_SIZE), large(LARGE_SIZE);
   EXPECT_EQ(empty.size(), 0);
   EXPECT_EQ(small.size(), SMALL_SIZE);
