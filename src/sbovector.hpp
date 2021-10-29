@@ -170,7 +170,7 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
   template <size_t OtherSize, typename OA>
   void inline_swap(VectorImpl<DataType, OtherSize, OA>& smaller) {
     // requirement count_ >= smaller.count_
-    // requirement count_ <= OtherSize AND small.count_ <= BufferSize
+    // requirement count_ <= min(OtherSize, BufferSize)
     auto& large_impl = *this;
     auto& small_impl = smaller;
     std::swap_ranges(small_impl.begin(), small_impl.end(), large_impl.begin());
@@ -188,7 +188,6 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
 
   template<size_t OtherSize>
   void external_swap(VectorImpl<DataType, OtherSize, Allocator>& other) {
-    // requirement: count > OtherSize AND other.count_ > BufferSize
     std::swap(count_, other.count_);
     std::swap(external_.data_, other.external_.data_);
     std::swap(external_.capacity_, other.external_.capacity_);

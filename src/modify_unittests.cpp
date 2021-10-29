@@ -4,68 +4,31 @@
 
 TYPED_TEST(CopyableSBOVector_, MustInsertSingleCopy) {
   const DataType t{};
-  {  // Small Container
-    ContainerType small(SMALL_SIZE);
-    auto out = small.insert(small.begin(), t);
-    EXPECT_EQ(out, small.begin());
-    EXPECT_EQ(small.size(), SMALL_SIZE + 1);
-  }
-  {  // Transitioning Container
-    ContainerType full(SBO_SIZE);
-    full.insert(full.begin(), t);
-    EXPECT_EQ(full.size(), SBO_SIZE + 1);
-  }
-  {  // Large Container
-    ContainerType large(LARGE_SIZE);
-    large.insert(large.begin(), t);
-    EXPECT_EQ(large.size(), LARGE_SIZE + 1);
+  ContainerType container;
+  for (auto i = 1u; i <= LARGE_SIZE; ++i) {
+    auto out = container.insert(container.begin() + (i / 10), t);
+    EXPECT_EQ(container.size(), i);
+    EXPECT_EQ(container.begin() + (i / 10), out);
   }
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustInsertSingleCopy) {
   const DataType t{};
-  {  // Small Container
-    ContainerType small(SMALL_SIZE, create_allocator());
-    auto out = small.insert(small.begin(), t);
-    EXPECT_EQ(out, small.begin());
-    EXPECT_EQ(small.size(), SMALL_SIZE + 1);
-    UseElements(small);
-  }
-  {  // Transitioning Container
-    ContainerType full(SBO_SIZE, create_allocator());
-    full.insert(full.begin(),t);
-    EXPECT_EQ(full.size(), SBO_SIZE + 1);
-    UseElements(full);
-  }
-  {  // Large Container
-    ContainerType large(LARGE_SIZE, create_allocator());
-    large.insert(large.begin(), t);
-    EXPECT_EQ(large.size(), LARGE_SIZE + 1);
-    UseElements(large);
+  ContainerType container(create_allocator());
+  for (auto i = 1u; i <= LARGE_SIZE; ++i) {
+    auto out = container.insert(container.begin() + (i / 10), t);
+    EXPECT_EQ(container.size(), i);
+    EXPECT_EQ(container.begin() + (i / 10), out);
+    UseElements(container);
   }
 }
 
-TEST(ValueVerifiedSBOVector, MustInsertSingleCopy) {
-  const int v{17};
-  {
-    auto vec = make_vector_sequence<SMALL_SIZE>();
-    SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
-    vec.insert(vec.cbegin(), v);
-    sbo.insert(sbo.cbegin(), v);
-    EXPECT_RANGE_EQ(vec, sbo);
-  }
-  {
-    auto vec = make_vector_sequence<SBO_SIZE>();
-    SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
-    vec.insert(vec.cbegin() + 2, v);
-    sbo.insert(sbo.cbegin() + 2, v);
-    EXPECT_RANGE_EQ(vec, sbo);
-  }
-  {
-    auto vec = make_vector_sequence<LARGE_SIZE>();
-    SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
-    vec.insert(vec.cbegin() + 8, v);
-    sbo.insert(sbo.cbegin() + 8, v);
+TEST(ValueVerifiedSBOVector, MustInsertSingle) {
+  std::vector<int> vec;
+  SBOVector<int, SBO_SIZE> sbo;
+  for (int i = 0; i < (int)(SBO_SIZE + 5); ++i) {
+    vec.insert(vec.begin(), std::cref(i));
+    sbo.insert(sbo.begin(), std::cref(i));
     EXPECT_RANGE_EQ(vec, sbo);
   }
 }
@@ -94,96 +57,44 @@ TYPED_TEST(SBOVector_, MustInsertSingleMove) {
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustInsertSingleMove) {
-  {  // Small Container
-    ContainerType small(SMALL_SIZE, create_allocator());
-    auto out = small.insert(small.begin(), DataType());
-    EXPECT_EQ(out, small.begin());
-    EXPECT_EQ(small.size(), SMALL_SIZE + 1);
-    UseElements(small);
-  }
-  {  // Transitioning Container
-    ContainerType full(SBO_SIZE, create_allocator());
-    auto out = full.insert(full.begin(), DataType());
-    EXPECT_EQ(full.size(), SBO_SIZE + 1);
-    EXPECT_EQ(full.begin(), out);
-    UseElements(full);
-  }
-  {  // Large Container
-    ContainerType large(LARGE_SIZE, create_allocator());
-    auto out = large.insert(large.begin(), DataType());
-    EXPECT_EQ(large.size(), LARGE_SIZE + 1);
-    EXPECT_EQ(large.begin(), out);
-    UseElements(large);
-  }
-}
-
-TEST(ValueVerifiedSBOVector, MustInsertSingleMove) {
-  {
-    auto vec = make_vector_sequence<SMALL_SIZE>();
-    SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
-    vec.insert(vec.cbegin(), 17);
-    sbo.insert(sbo.cbegin(), 17);
-    EXPECT_RANGE_EQ(vec, sbo);
-  }
-  {
-    auto vec = make_vector_sequence<SBO_SIZE>();
-    SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
-    vec.insert(vec.cbegin() + 2, 17);
-    sbo.insert(sbo.cbegin() + 2, 17);
-    EXPECT_RANGE_EQ(vec, sbo);
-  }
-  {
-    auto vec = make_vector_sequence<LARGE_SIZE>();
-    SBOVector<int, SBO_SIZE> sbo(vec.begin(), vec.end());
-    vec.insert(vec.cbegin() + 8, 19);
-    sbo.insert(sbo.cbegin() + 8, 19);
-    EXPECT_RANGE_EQ(vec, sbo);
+  ContainerType container(create_allocator());
+  for (auto i = 1u; i <= LARGE_SIZE; ++i) {
+    auto out = container.insert(container.begin() + (i / 10), DataType());
+    EXPECT_EQ(container.size(), i);
+    EXPECT_EQ(container.begin() + (i / 10), out);
+    UseElements(container);
   }
 }
 
 TYPED_TEST(CopyableSBOVector_, MustInsertCountCopies) {
   const DataType t{};
-  {  // Small Container
-    ContainerType small(SMALL_SIZE);
-    auto out = small.insert(small.begin(), 2,  t);
-    EXPECT_EQ(out, small.begin());
-    EXPECT_EQ(small.size(), SMALL_SIZE + 2);
-  }
-  {  // Transitioning Container
-    ContainerType full(SBO_SIZE - 1);
-    full.insert(full.begin(), 12,  t);
-    EXPECT_EQ(full.size(), SBO_SIZE + 11);
-  }
-  {  // Large Container
-    ContainerType large(LARGE_SIZE);
-    large.insert(large.begin(), 15, t);
-    EXPECT_EQ(large.size(), LARGE_SIZE + 15);
-  }
+  ContainerType container;
+  auto out = container.insert(container.begin(), 2, t);
+  EXPECT_EQ(out, container.begin());
+  EXPECT_EQ(container.size(), 2);
+  out = container.insert(container.end(), SMALL_SIZE, t);
+  EXPECT_EQ(out, container.begin() + 2);
+  EXPECT_EQ(container.size(), SMALL_SIZE + 2);
+  out = container.insert(container.begin() + 3, SBO_SIZE, t);
+  EXPECT_EQ(out, container.begin() + 3);
+  EXPECT_EQ(container.size(), SMALL_SIZE + SBO_SIZE + 2);
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustInsertCountCopies) {
-  {
-    const DataType t{};
-    {  // Small Container
-      ContainerType small(SMALL_SIZE, create_allocator());
-      auto out = small.insert(small.begin(), 2, t);
-      EXPECT_EQ(out, small.begin());
-      EXPECT_EQ(small.size(), SMALL_SIZE + 2);
-    }
-    {  // Transitioning Container
-      ContainerType full(SBO_SIZE, create_allocator());
-      full.insert(full.begin(), 7, t);
-      EXPECT_EQ(full.size(), SBO_SIZE + 7);
-    }
-    {  // Large Container
-      ContainerType large(LARGE_SIZE, create_allocator());
-      large.insert(large.begin(), 15, t);
-      EXPECT_EQ(large.size(), LARGE_SIZE + 15);
-    }
-  }
-  EXPECT_EQ(totals_.allocs_, totals_.frees_);
-  EXPECT_EQ(OperationCounter::TOTALS.constructs(),
-            OperationCounter::TOTALS.destructs());
+  const DataType t{};
+  ContainerType container(create_allocator());
+  auto out = container.insert(container.begin(), 2, t);
+  EXPECT_EQ(out, container.begin());
+  EXPECT_EQ(container.size(), 2);
+  UseElements(container);
+  out = container.insert(container.end(), SMALL_SIZE, t);
+  EXPECT_EQ(out, container.begin() + 2);
+  EXPECT_EQ(container.size(), SMALL_SIZE + 2);
+  UseElements(container);
+  out = container.insert(container.begin() + 3, SBO_SIZE, t);
+  EXPECT_EQ(out, container.begin() + 3);
+  EXPECT_EQ(container.size(), SMALL_SIZE + SBO_SIZE + 2);
+  UseElements(container);
 }
 
 TEST(ValueVerifiedSBOVector, MustInsertCountCopies) {
@@ -213,48 +124,23 @@ TEST(ValueVerifiedSBOVector, MustInsertCountCopies) {
 
 TYPED_TEST(CopyableSBOVector_, MustInsertRange) {
   std::vector<DataType> range(3);
-  { 
-    ContainerType small(SMALL_SIZE);
-    auto iter = small.insert(small.begin(), range.begin(), range.end());
-    EXPECT_EQ(small.size(), SMALL_SIZE + range.size());
-    EXPECT_EQ(iter, small.begin());
-  }
-  { 
-    ContainerType full(SBO_SIZE);
-    auto iter = full.insert(full.begin() + 2, range.begin(), range.end());
-    EXPECT_EQ(full.size(), SBO_SIZE + range.size());
-    EXPECT_EQ(iter, full.begin() + 2);
-  }
-  {
-    ContainerType large(LARGE_SIZE);
-    auto iter = large.insert(large.begin() + 3, range.begin(), range.end());
-    EXPECT_EQ(large.size(), LARGE_SIZE + range.size());
-    EXPECT_EQ(iter, large.begin() + 3);
+  ContainerType container;
+  for (auto i = 1u; i <= (SBO_SIZE / range.size()) + 1; ++i) {
+    auto iter = container.insert(container.begin(), range.begin(), range.end());
+    EXPECT_EQ(iter, container.begin());
+    EXPECT_EQ(container.size(), range.size() * i);
   }
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustInsertRange) {
   std::vector<DataType> range(3);
-  {
-    ContainerType small(SMALL_SIZE, create_allocator());
-    auto iter = small.insert(small.begin(), range.begin(), range.end());
-    EXPECT_EQ(small.size(), SMALL_SIZE + range.size());
-    EXPECT_EQ(iter, small.begin());
-    UseElements(small);
-  }
-  {
-    ContainerType full(SBO_SIZE, create_allocator());
-    auto iter = full.insert(full.begin() + 2, range.begin(), range.end());
-    EXPECT_EQ(full.size(), SBO_SIZE + range.size());
-    EXPECT_EQ(iter, full.begin() + 2);
-    UseElements(full);
-  }
-  {
-    ContainerType large(LARGE_SIZE, create_allocator());
-    auto iter = large.insert(large.begin() + 3, range.begin(), range.end());
-    EXPECT_EQ(large.size(), LARGE_SIZE + range.size());
-    EXPECT_EQ(iter, large.begin() + 3);
-    UseElements(large);
+  ContainerType container(create_allocator());
+  for (auto i = 1u; i <= (SBO_SIZE / range.size()) + 1; ++i) {
+    auto iter =
+        container.insert(container.begin(), range.begin(), range.end());
+    EXPECT_EQ(iter, container.begin());
+    EXPECT_EQ(container.size(), range.size() * i);
+    UseElements(container);
   }
 }
 
@@ -285,48 +171,23 @@ TEST(ValueVerifiedSBOVector, MustInsertRange) {
 
 TYPED_TEST(CopyableSBOVector_, MustInsertList) {
   std::initializer_list<DataType> list{DataType(), DataType(), DataType()};
-  {
-    ContainerType small(SMALL_SIZE);
-    auto iter = small.insert(small.begin(), list);
-    EXPECT_EQ(small.size(), SMALL_SIZE + list.size());
-    EXPECT_EQ(iter, small.begin());
-  }
-  {
-    ContainerType full(SBO_SIZE);
-    auto iter = full.insert(full.begin() + 2, list);
-    EXPECT_EQ(full.size(), SBO_SIZE + list.size());
-    EXPECT_EQ(iter, full.begin() + 2);
-  }
-  {
-    ContainerType large(LARGE_SIZE);
-    auto iter = large.insert(large.begin() + 3, list);
-    EXPECT_EQ(large.size(), LARGE_SIZE + list.size());
-    EXPECT_EQ(iter, large.begin() + 3);
+  ContainerType container;
+  for (auto i = 1u; i <= (SBO_SIZE / list.size()) + 1; ++i) {
+    auto iter =
+        container.insert(container.begin(), list);
+    EXPECT_EQ(iter, container.begin());
+    EXPECT_EQ(container.size(), list.size() * i);
   }
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustInsertList) {
   std::initializer_list<DataType> list{DataType(), DataType(), DataType()};
-  {
-    ContainerType small(SMALL_SIZE, create_allocator());
-    auto iter = small.insert(small.begin(), list);
-    EXPECT_EQ(small.size(), SMALL_SIZE + list.size());
-    EXPECT_EQ(iter, small.begin());
-    UseElements(small);
-  }
-  {
-    ContainerType full(SBO_SIZE, create_allocator());
-    auto iter = full.insert(full.begin() + 2, list);
-    EXPECT_EQ(full.size(), SBO_SIZE + list.size());
-    EXPECT_EQ(iter, full.begin() + 2);
-    UseElements(full);
-  }
-  {
-    ContainerType large(LARGE_SIZE, create_allocator());
-    auto iter = large.insert(large.begin() + 3, list);
-    EXPECT_EQ(large.size(), LARGE_SIZE + list.size());
-    EXPECT_EQ(iter, large.begin() + 3);
-    UseElements(large);
+  ContainerType container(create_allocator());
+  for (auto i = 1u; i <= (SBO_SIZE / list.size()) + 1; ++i) {
+    auto iter = container.insert(container.begin(), list);
+    EXPECT_EQ(iter, container.begin());
+    EXPECT_EQ(container.size(), list.size() * i);
+    UseElements(container);
   }
 }
 
@@ -356,45 +217,21 @@ TEST(ValueVerifiedSBOVector, MustInsertList) {
 }
 
 TYPED_TEST(SBOVector_, MustEmplace) {
-  {
-    {  // Small Container
-      ContainerType small(SMALL_SIZE);
-      auto out = small.emplace(small.begin(), DataType());
-      EXPECT_EQ(out, small.begin());
-      EXPECT_EQ(small.size(), SMALL_SIZE + 1);
-    }
-    {  // Transitioning Container
-      ContainerType full(SBO_SIZE);
-      full.emplace(full.begin(), DataType());
-      EXPECT_EQ(full.size(), SBO_SIZE + 1);
-    }
-    {  // Large Container
-      ContainerType large(LARGE_SIZE);
-      large.emplace(large.begin(), DataType());
-      EXPECT_EQ(large.size(), LARGE_SIZE + 1);
-    }
+  ContainerType container;
+  for (auto i = 1u; i <= SBO_SIZE + 5; ++i) {
+    auto out = container.emplace(container.begin());
+    EXPECT_EQ(out, container.begin());
+    EXPECT_EQ(container.size(), i);
   }
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustEmplace) {
-  {  // Small Container
-    ContainerType small(SMALL_SIZE, create_allocator());
-    auto out = small.emplace(small.begin(), DataType());
-    EXPECT_EQ(out, small.begin());
-    EXPECT_EQ(small.size(), SMALL_SIZE + 1);
-    UseElements(small);
-  }
-  {  // Transitioning Container
-    ContainerType full(SBO_SIZE, create_allocator());
-    full.emplace(full.begin(), DataType());
-    EXPECT_EQ(full.size(), SBO_SIZE + 1);
-    UseElements(full);
-  }
-  {  // Large Container
-    ContainerType large(LARGE_SIZE, create_allocator());
-    large.emplace(large.begin(), DataType());
-    EXPECT_EQ(large.size(), LARGE_SIZE + 1);
-    UseElements(large);
+  ContainerType container(create_allocator());
+  for (auto i = 1u; i <= SBO_SIZE + 5; ++i) {
+    auto out = container.emplace(container.begin());
+    EXPECT_EQ(out, container.begin());
+    EXPECT_EQ(container.size(), i);
+    UseElements(container);
   }
 }
 
@@ -423,42 +260,24 @@ TEST(ValueVerifiedSBOVector, MustEmplace) {
 }
 
 TYPED_TEST(SBOVector_, MustEraseSingleValue) {
-  {
-    ContainerType small(SMALL_SIZE);
-    small.erase(small.begin() + 1);
-    EXPECT_EQ(small.size(), SMALL_SIZE - 1);
-  }
-  {
-    ContainerType shrinking(SBO_SIZE + 1);
-    shrinking.erase(shrinking.begin());
-    EXPECT_EQ(shrinking.size(), SBO_SIZE);
-  }
-  {
-    ContainerType large(LARGE_SIZE);
-    large.erase(large.end() - 1);
-    EXPECT_EQ(large.size(), LARGE_SIZE - 1);
-  }
+  ContainerType container(LARGE_SIZE);
+  auto ref_size = LARGE_SIZE;
+  do {
+    --ref_size;
+    container.erase(container.begin());
+    EXPECT_EQ(ref_size, container.size());
+  } while (ref_size);
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustEraseSingleValue) {
-  {
-    ContainerType small(SMALL_SIZE, create_allocator());
-    small.erase(small.begin() + 1);
-    EXPECT_EQ(small.size(), SMALL_SIZE - 1);
-    UseElements(small);
-  }
-  {
-    ContainerType shrinking(SBO_SIZE + 1, create_allocator());
-    shrinking.erase(shrinking.begin());
-    EXPECT_EQ(shrinking.size(), SBO_SIZE);
-    UseElements(shrinking);
-  }
-  {
-    ContainerType large(LARGE_SIZE, create_allocator());
-    large.erase(large.end() - 1);
-    EXPECT_EQ(large.size(), LARGE_SIZE - 1);
-    UseElements(large);
-  }
+  ContainerType container(LARGE_SIZE, create_allocator());
+  auto ref_size = LARGE_SIZE;
+  do {
+    --ref_size;
+    container.erase(container.begin());
+    EXPECT_EQ(ref_size, container.size());
+    UseElements(container);
+  } while (ref_size);
 }
 
 TEST(ValueVerifiedSBOVector, MustEraseSingleValue) {
@@ -550,25 +369,10 @@ TEST(ValueVerifiedSBOVector, MustEraseRange) {
 
 TYPED_TEST(CopyableSBOVector_, MustPushBackCopy) {
   const DataType t{};
-  {
-    ContainerType empty;
-    empty.push_back(t);
-    EXPECT_EQ(empty.size(), 1);
-  }
-  {
-    ContainerType small(SMALL_SIZE);
-    small.push_back(t);
-    EXPECT_EQ(small.size(), SMALL_SIZE + 1);
-  }
-  {
-    ContainerType full(SBO_SIZE);
-    full.push_back(t);
-    EXPECT_EQ(full.size(), SBO_SIZE + 1);
-  }
-  {
-    ContainerType large(LARGE_SIZE);
-    large.push_back(t);
-    EXPECT_EQ(large.size(), LARGE_SIZE + 1);
+  ContainerType container;
+  for (auto i = 1u; i <= SBO_SIZE + 5; ++i) {
+    container.push_back(t);
+    EXPECT_EQ(container.size(), i);
   }
 }
 
@@ -615,27 +419,10 @@ TEST(ValueVerifiedSBOVector, MustPushBackCopy) {
 }
 
 TYPED_TEST(SBOVector_, MustPushBackMove) {
-  {
-    {
-      ContainerType empty;
-      empty.push_back(DataType());
-      EXPECT_EQ(empty.size(), 1);
-    }
-    {
-      ContainerType small(SMALL_SIZE);
-      small.push_back(DataType());
-      EXPECT_EQ(small.size(), SMALL_SIZE + 1);
-    }
-    {
-      ContainerType full(SBO_SIZE);
-      full.push_back(DataType());
-      EXPECT_EQ(full.size(), SBO_SIZE + 1);
-    }
-    {
-      ContainerType large(LARGE_SIZE);
-      large.push_back(DataType());
-      EXPECT_EQ(large.size(), LARGE_SIZE + 1);
-    }
+  ContainerType container;
+  for (auto i = 0u; i < LARGE_SIZE; ++i) {
+    container.push_back(DataType());
+    EXPECT_EQ(container.size(), i + 1);
   }
 }
 
@@ -680,25 +467,10 @@ TEST(ValueVerifiedSBOVector, MustPushBackMove) {
 }
 
 TYPED_TEST(SBOVector_, MustEmplaceBack) {
-  {
-    ContainerType empty;
-    empty.emplace_back();
-    EXPECT_EQ(empty.size(), 1);
-  }
-  {
-    ContainerType small(SMALL_SIZE);
-    small.emplace_back();
-    EXPECT_EQ(small.size(), SMALL_SIZE + 1);
-  }
-  {
-    ContainerType full(SBO_SIZE);
-    full.emplace_back();
-    EXPECT_EQ(full.size(), SBO_SIZE + 1);
-  }
-  {
-    ContainerType large(LARGE_SIZE);
-    large.emplace_back();
-    EXPECT_EQ(large.size(), LARGE_SIZE + 1);
+  ContainerType container;
+  for (auto i = 0u; i < LARGE_SIZE; ++i) {
+    container.emplace_back();
+    EXPECT_EQ(container.size(), i + 1);
   }
 }
 
