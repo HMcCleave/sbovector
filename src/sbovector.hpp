@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <utility>
 
+
 namespace details_ {
 
 constexpr size_t SuggestGrowth(size_t old_size) {
@@ -59,7 +60,7 @@ struct SBOVectorBase : private Allocator {
   ~SBOVectorBase() { /*intentionally empty*/ }
 
   Allocator& access_allocator() { return *this; }
-  Allocator get_allocator() const { return Allocator(*this); }
+  Allocator get_allocator() const { return *this; }
 };
 
 template<typename DataType, size_t BufferSize, typename Allocator>
@@ -88,9 +89,10 @@ struct SBOVectorBase<DataType, BufferSize, Allocator, false> {
 };
 
 template<typename DataType, size_t BufferSize, typename Allocator>
-struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
+struct VectorImpl final : public SBOVectorBase<DataType, BufferSize, Allocator> {
+
   using BaseType = SBOVectorBase<DataType, BufferSize, Allocator>;
-  static const size_t BufferSize = BufferSize;
+
   VectorImpl() : BaseType() {}
   VectorImpl(const Allocator& alloc) : BaseType(alloc) {}
 
@@ -129,8 +131,18 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     auto uninit_count = std::min(count_ - pos, insert_count);
     auto assign_count = count_ - (pos + uninit_count);
     std::uninitialized_move_n(end() - uninit_count, uninit_count,
-                    begin() + new_size - uninit_count);
-    std::move_backward(begin() + pos, begin() + pos + assign_count, end());
+                              begin() + new_size - uninit_count);
+    if constexpr (!std::is_nothrow_move_assignable_v<DataType>) {
+      auto cleaner = [&](size_t*) {
+        std::destroy_n(begin() + new_size - uninit_count, uninit_count);
+        count_ = pos;
+      };
+      std::unique_ptr<size_t, decltype(cleaner)> exception_hook(&count_, cleaner);
+      std::move_backward(begin() + pos, begin() + pos + assign_count, end());
+      exception_hook.release();
+    } else {
+      std::move_backward(begin() + pos, begin() + pos + assign_count, end());
+    }
     std::destroy_n(begin() + pos, count_ - (pos + assign_count));
     count_ += insert_count;
   }
@@ -149,9 +161,11 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
       }
       get_allocator().deallocate(ptr, new_cap);
     };
+
     std::unique_ptr<DataType, decltype(deleter)> new_buffer{
         get_allocator().allocate(new_cap), deleter
     };
+
     std::uninitialized_move_n(begin(), pos, new_buffer.get());
     ++flag;
 
@@ -192,8 +206,10 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
       access_allocator().deallocate(ptr, count_);
       count_ = 0;
     };
+
     std::unique_ptr<DataType, decltype(on_exception)> exception_hook(
         external_ptr_copy, on_exception);
+
     new (&inline_) decltype(inline_)();
 
     std::uninitialized_move_n(external_ptr_copy, count_, inline_as_datatype());
@@ -204,8 +220,9 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
   }
 
  private:
-  template<typename C1, typename C2>
-  inline static void no_alloc_swap(C1& A, C2& B) {
+  template<size_t Size1, typename Allocator1, size_t Size2, typename Allocator2>
+  inline static void no_alloc_swap(VectorImpl<DataType, Size1, Allocator1>& A,
+                                   VectorImpl<DataType, Size2, Allocator2>& B) {
     auto small_size = std::min(A.count_, B.count_);
     auto size_diff = std::max(A.count_, B.count_) - small_size;
 
@@ -223,8 +240,13 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     std::swap(A.count_, B.count_);
   }
 
-  template<typename C1, typename C2>
-  inline static void one_alloc_swap(C1& allocating, C2& remaining) {
+  template <size_t Size1,
+            typename Allocator1,
+            size_t Size2,
+            typename Allocator2>
+  inline static void one_alloc_swap(
+      VectorImpl<DataType, Size1, Allocator1>& allocating,
+      VectorImpl<DataType, Size2, Allocator2>& remaining) {
     auto new_data_size = remaining.count_;
     int flag { 0 };
     auto deleter = [&](DataType* ptr) {
@@ -233,15 +255,18 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
       }
       allocating.access_allocator().deallocate(ptr, new_data_size);
     };
+
     std::unique_ptr<DataType, decltype(deleter)> new_data(
         allocating.access_allocator().allocate(new_data_size), deleter);
+
     std::uninitialized_move_n(remaining.begin(), new_data_size, new_data.get());
     ++flag;
     std::destroy(remaining.begin(), remaining.end()); // could be benificial here to add branches to save destructions on complicated types
     std::uninitialized_move_n(allocating.begin(), allocating.count_,
                               remaining.begin());
-    if (remaining.count_ > C2::BufferSize &&
-        allocating.count_ <= C2::BufferSize) {
+
+    if (remaining.count_ > Size2 &&
+        allocating.count_ <= Size2) {
       remaining.count_ = allocating.count_;
       remaining.internalize();
     } else {
@@ -280,6 +305,7 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
       };
       std::unique_ptr<DataType, decltype(this_deleter)> new_this(
           access_allocator().allocate(that.count_), this_deleter);
+
       int new_that_constructed{0};
       auto new_that_size = count_;
       auto that_deleter = [&](DataType* ptr) {
@@ -290,12 +316,15 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
       };
       std::unique_ptr<DataType, decltype(that_deleter)> new_that(
           that.access_allocator().allocate(count_), that_deleter);
+
       std::uninitialized_move_n(that.begin(), that.count_, new_this.get());
       ++new_this_constructed;
       std::uninitialized_move_n(begin(), count_, new_that.get());
       ++new_that_constructed;
+
       clear();
       that.clear();
+
       std::destroy_at(&inline_);
       std::destroy_at(&that.inline_);
       that.external_.capacity_ = that.count_ = new_that_size;
@@ -316,7 +345,9 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
 
     if (!(this_is_inline || that_is_inline)) {
       if constexpr (!std::allocator_traits<Allocator>::is_always_equal::value) {
-        std::swap(access_allocator(), that.access_allocator());
+        if (access_allocator() != that.access_allocator()) {
+          std::swap(access_allocator(), that.access_allocator());
+        }
       }
       std::swap(count_, that.count_);
       std::swap(external_.data_, that.external_.data_);
@@ -352,11 +383,16 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
 
     std::unique_ptr<DataType, decltype(deleter)> new_data(
         access_allocator().allocate(capacity), deleter);
+
     std::uninitialized_move_n(begin(), count_, new_data.get());
     std::destroy(begin(), end());
+
     if (count_ > BufferSize) {
       access_allocator().deallocate(external_.data_, external_.capacity_);
+    } else {
+      std::destroy_at(&inline_);
     }
+
     external_.data_ = new_data.release();
     external_.capacity_ = capacity;
   }
@@ -375,6 +411,7 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     std::destroy(begin(), end());
     get_allocator().deallocate(external_.data_,
                                external_.capacity_);
+
     external_.data_ = new_data.release();
     external_.capacity_ = count_;
   }
@@ -396,17 +433,21 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     if (count_ == capacity())
       reserve(count_ + 1);
     ++count_;
-    auto on_exception = [&](size_t*) {
-      --count_;
-      if (count_ <= BufferSize) {
-        internalize();
-      }
-    };
-    std::unique_ptr<size_t, decltype(on_exception)> exception_hook(&count_,
-                                                                on_exception);
     DataType* out = begin() + count_ - 1;
-    new (out) DataType(std::forward<Args>(args)...);
-    exception_hook.release();
+    if constexpr (!std::is_nothrow_constructible_v<DataType, Args...>) {
+      auto on_exception = [&](size_t*) {
+        --count_;
+        if (count_ <= BufferSize) {
+          internalize();
+        }
+      };
+      std::unique_ptr<size_t, decltype(on_exception)> exception_hook(&count_,
+                                                                  on_exception);
+      new (out) DataType(std::forward<Args>(args)...);
+      exception_hook.release();
+    } else {
+      new (out) DataType(std::forward<Args>(args)...);
+    }
     return *out;
   }
 };
