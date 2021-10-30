@@ -481,9 +481,12 @@ class SBOVector {
      swap(move_from);
    }
 
-   template<int OtherSize, typename AllocatorType>
+   // If you are trying to move to an allocator of the same type that does not equal the allocator of the
+   // source object you will have to instead construct, assign and clear to make explicit that a new allocation
+   // must take place.
+   template<int OtherSize, typename AllocatorType, typename = std::enable_if_t<!std::is_same_v<AllocatorType, Allocator>>>
    SBOVector(SBOVector<DataType, OtherSize, AllocatorType>&& move_from,
-             const Allocator& alloc = Allocator()) noexcept : SBOVector(alloc) {
+             const Allocator& alloc = Allocator()) : SBOVector(alloc) {
      swap(move_from);
    }
 
@@ -520,14 +523,25 @@ class SBOVector {
    }
    
    void assign(size_t count, const DataType& value) {
-     SBOVector temp(count, value, get_allocator());
-     swap(temp);
+     for (auto iter = begin(), end_ = begin() + std::min(size(), count);
+          iter != end_; ++iter) {
+       *iter = value;
+     }
+     resize(count, value);
    }
 
-   template<typename InputIt>
-   void assign(InputIt begin, InputIt end) {
-     SBOVector temp(begin, end, get_allocator());
-     swap(temp);
+   template<typename InputIt, typename = std::enable_if_t<details_::is_iterator_v<InputIt>>>
+   void assign(InputIt p_begin, InputIt p_end) {
+     auto new_size = std::distance(p_begin, p_end);
+     for (auto iter = begin(), end_ = end(); iter != end_ && p_begin != p_end;
+          ++iter, ++p_begin) {
+       *iter = *p_begin;
+     }
+     if (new_size > size()) {
+       insert(end(), p_begin, p_end);
+     } else {
+       resize(new_size);
+     }
    }
 
    void assign(std::initializer_list<DataType> list) {
