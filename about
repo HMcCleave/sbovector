@@ -1,7 +1,6 @@
 SBOVector is a quick project to implement a std::vector-esc vector /w a small buffer optimization using c++17
 
 TODO:
-Exception Correctness (currently expections (bad_alloc, exception in DataType move/copy) can do some pretty nasty things (see loose allocations and use of intermediate invalid states)
 
 Code cleanup
 
@@ -10,6 +9,8 @@ Stretch Goal:
 Split implementation into compact/fast_iteration, where fast iteration has a DataType* to the data outside of the union allowing access calls with no branching.
 
 Future considerations:
+
+Add testing for exception cases, currently unit tests don't verify that SBOVector can handle all possible exceptions correctly
 
 Add tests insuring requirements on limits to operations where possible, the std::vector specification provides some performance guarentees, most of those can be applied to SBOVector with the obvious exception of swap/move not being able to guarentee nomove/nocopy.
 

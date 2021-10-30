@@ -186,10 +186,18 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     // Helper function, must be called when decreasing in size such that the count is <= BufferSize but an external buffer still exists
     auto external_ptr_copy = external_.data_;
     auto external_capacity_copy = external_.capacity_;
+
+    auto on_exception = [&](DataType* ptr) {
+      std::destroy_n(ptr, count_);
+      access_allocator().deallocate(ptr, count_);
+      count_ = 0;
+    };
+    std::unique_ptr<DataType, decltype(on_exception)> exception_hook(
+        external_ptr_copy, on_exception);
     new (&inline_) decltype(inline_)();
 
-    // TODO: if this throws an exception it is a bad time
     std::uninitialized_move_n(external_ptr_copy, count_, inline_as_datatype());
+    exception_hook.release();
 
     std::destroy_n(external_ptr_copy, count_);
     get_allocator().deallocate(external_ptr_copy, external_capacity_copy);
