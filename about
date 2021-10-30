@@ -5,8 +5,6 @@ Exception Correctness (currently expections (bad_alloc, exception in DataType mo
 
 Code cleanup
 
-Improve Compile Error Messaging (static_assert ALL THE THINGS!)
-
 Stretch Goal:
 
 Split implementation into compact/fast_iteration, where fast iteration has a DataType* to the data outside of the union allowing access calls with no branching.

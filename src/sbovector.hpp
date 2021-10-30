@@ -341,6 +341,13 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
 
 template<typename DataType, size_t BufferSize, typename Allocator = std::allocator<DataType>>
 class SBOVector {
+  static_assert(std::is_move_assignable_v<DataType>);
+  static_assert(BufferSize > 0);
+  static_assert(std::is_convertible_v<std::allocator_traits<Allocator>::pointer,
+                                      DataType*>);
+  static_assert(
+      std::is_convertible_v<std::allocator_traits<Allocator>::const_pointer,
+                            const DataType*>);
  private:
   details_::VectorImpl<DataType, BufferSize, Allocator> impl_;
 
