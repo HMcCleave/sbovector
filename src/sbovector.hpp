@@ -176,13 +176,6 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     get_allocator().deallocate(external_ptr_copy, external_capacity_copy);
   }
 
-  template<size_t OtherSize>
-  inline void external_swap(VectorImpl<DataType, OtherSize, Allocator>& other) {
-    std::swap(count_, other.count_);
-    std::swap(external_.data_, other.external_.data_);
-    std::swap(external_.capacity_, other.external_.capacity_);
-  }
-
  private:
   template<typename C1, typename C2>
   inline static void no_alloc_swap(C1& A, C2& B) {
@@ -266,12 +259,14 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     const auto that_is_inline = (that.count_ <= OtherSize);
     const auto this_will_be_inline = (that.count_ <= BufferSize);
     const auto that_will_be_inline = (count_ <= OtherSize);
-    const auto can_external_swap =
-        std::allocator_traits<Allocator>::is_always_equal::value ||
-      (access_allocator() == that.access_allocator());
 
-    if (!(this_is_inline || that_is_inline) && can_external_swap) {
-      external_swap(that);
+    if (!(this_is_inline || that_is_inline)) {
+      if constexpr (!std::allocator_traits<Allocator>::is_always_equal::value) {
+        std::swap(access_allocator(), that.access_allocator());
+      }
+      std::swap(count_, that.count_);
+      std::swap(external_.data_, that.external_.data_);
+      std::swap(external_.capacity_, that.external_.capacity_);
       if (this_will_be_inline)
         internalize();
       if (that_will_be_inline)
@@ -385,7 +380,7 @@ class SBOVector {
    SBOVector(const SBOVector<DataType, OtherSize, AllocatorType>& copy,
              const Allocator& alloc = Allocator()) : SBOVector(copy.begin(), copy.end(), alloc) {}
 
-   SBOVector(SBOVector&& move_from) : SBOVector(move_from.get_allocator()) {
+   SBOVector(SBOVector&& move_from) noexcept(std::is_nothrow_move_assignable_v<DataType>) : SBOVector(move_from.get_allocator()) {
      swap(move_from);
    }
 
@@ -417,7 +412,7 @@ class SBOVector {
      return *this;
    }
 
-   SBOVector& operator=(SBOVector&& that) {
+   SBOVector& operator=(SBOVector&& that) noexcept(std::is_nothrow_move_assignable_v<DataType>) {
      swap(that);
      return *this;
    }
@@ -610,7 +605,9 @@ class SBOVector {
    template<size_t OtherSize, typename = std::enable_if_t<OtherSize != BufferSize>>
    void swap(SBOVector<DataType, OtherSize, Allocator>& that) { impl_.swap(that.impl_); }
 
-   void swap(SBOVector& that) { impl_.swap(that.impl_); }
+   void swap(SBOVector& that) noexcept(std::is_nothrow_move_assignable_v<DataType>) {
+     impl_.swap(that.impl_);
+   }
 
    friend class SBOVector;
 };
