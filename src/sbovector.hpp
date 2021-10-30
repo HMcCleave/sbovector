@@ -59,7 +59,7 @@ struct SBOVectorBase : private Allocator {
   ~SBOVectorBase() { /*intentionally empty*/ }
 
   Allocator& access_allocator() { return *this; }
-  Allocator get_allocator() const { return *this; }
+  Allocator get_allocator() const { return Allocator(*this); }
 };
 
 template<typename DataType, size_t BufferSize, typename Allocator>
