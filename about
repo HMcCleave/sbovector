@@ -7,8 +7,6 @@ Code cleanup
 
 Improve Compile Error Messaging (static_assert ALL THE THINGS!)
 
-Address the allocator assumption (current assumption is any allocator can deallocate any allocations from allocators of the same type [see external swap])
-
 Stretch Goal:
 
 Split implementation into compact/fast_iteration, where fast iteration has a DataType* to the data outside of the union allowing access calls with no branching.

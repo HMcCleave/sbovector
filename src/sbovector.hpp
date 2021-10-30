@@ -3,14 +3,17 @@
 
 #include <array>
 #include <algorithm>
-#include <memory>
 #include <initializer_list>
+#include <memory>
 #include <type_traits>
 #include <utility>
 
 namespace details_ {
 
-constexpr size_t kSBOVectorGrowthFactor = 2;
+constexpr size_t SuggestGrowth(size_t old_size) {
+  constexpr size_t kSBOVectorGrowthFactor = 2;
+  return old_size * kSBOVectorGrowthFactor;
+}
 
 template<typename T>
 struct is_compactable {
@@ -133,8 +136,9 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
   }
 
   void insert_unninitialized_with_growth(size_t pos, size_t insert_count) {
-    size_t new_size = count_ + insert_count;
-    DataType* new_buffer = get_allocator().allocate(new_size);
+    const size_t new_size = count_ + insert_count;
+    const size_t new_cap = std::max(new_size, SuggestGrowth(count_));
+    DataType* new_buffer = get_allocator().allocate(new_cap);
     // TODO: throw bad_alloc on nullptr if using exceptions
     std::uninitialized_move_n(begin(), pos, new_buffer);
     std::uninitialized_move_n(begin() + pos, count_ - pos,
@@ -142,7 +146,7 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     clear();
     count_ = new_size;
     external_.data_ = new_buffer;
-    external_.capacity_ = new_size;
+    external_.capacity_ = new_cap;
   }
 
   size_t capacity() const {
@@ -262,8 +266,11 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     const auto that_is_inline = (that.count_ <= OtherSize);
     const auto this_will_be_inline = (that.count_ <= BufferSize);
     const auto that_will_be_inline = (count_ <= OtherSize);
+    const auto can_external_swap =
+        std::allocator_traits<Allocator>::is_always_equal::value ||
+      (access_allocator() == that.access_allocator());
 
-    if (!(this_is_inline || that_is_inline)) {
+    if (!(this_is_inline || that_is_inline) && can_external_swap) {
       external_swap(that);
       if (this_will_be_inline)
         internalize();
@@ -287,7 +294,7 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     // (increase count_ + construct required elements)
     // immediately.
 
-    capacity = std::max(capacity, count_ * kSBOVectorGrowthFactor);
+    capacity = std::max(capacity, SuggestGrowth(count_));
     DataType* new_data = access_allocator().allocate(capacity);
     // TODO if using exceptions, throw bad_alloc on nullptr
     std::uninitialized_move_n(begin(), count_, new_data);

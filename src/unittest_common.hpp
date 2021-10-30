@@ -27,6 +27,8 @@ struct CountingAllocator {
   using const_pointer = const T*;
   using aligned_t = std::aligned_storage_t<sizeof(T), alignof(T)>;
 
+  inline static std::true_type is_always_equal;
+
   CountingAllocator(Totals* totals) : totals_(totals) {}
 
   pointer allocate(size_t n, const void*) { return allocate(n); }
@@ -38,6 +40,8 @@ struct CountingAllocator {
     ++totals_->frees_;
     delete[] reinterpret_cast<aligned_t*>(p);
   }
+
+  bool operator==(const CountingAllocator&) const { return true; }
 };
 
 template <typename T>
@@ -50,6 +54,8 @@ struct CustomAllocator {
   pointer allocate(size_t n, const void*) { return allocate(n); }
   pointer allocate(size_t n) { return new T[n]; }
   void deallocate(pointer p, size_t) { delete[] p; }
+
+  bool operator==(const CustomAllocator& that) const { return this == &that; }
 };
 
 using Trivial = int;
