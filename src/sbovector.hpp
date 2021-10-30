@@ -138,14 +138,30 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
   void insert_unninitialized_with_growth(size_t pos, size_t insert_count) {
     const size_t new_size = count_ + insert_count;
     const size_t new_cap = std::max(new_size, SuggestGrowth(count_));
-    DataType* new_buffer = get_allocator().allocate(new_cap);
-    // TODO: throw bad_alloc on nullptr if using exceptions
-    std::uninitialized_move_n(begin(), pos, new_buffer);
+
+    int flag{0};
+    auto deleter = [&](DataType* ptr) {
+      if (flag > 0) {
+        std::destroy_n(ptr, pos);
+      }
+      if (flag > 1) {
+        std::destroy_n(ptr + pos + insert_count, count_ - pos);
+      }
+      get_allocator().deallocate(ptr, new_cap);
+    };
+    std::unique_ptr<DataType, decltype(deleter)> new_buffer{
+        get_allocator().allocate(new_cap), deleter
+    };
+    std::uninitialized_move_n(begin(), pos, new_buffer.get());
+    ++flag;
+
     std::uninitialized_move_n(begin() + pos, count_ - pos,
-                    new_buffer + pos + insert_count);
+                    new_buffer.get() + pos + insert_count);
+    ++flag;
+
     clear();
     count_ = new_size;
-    external_.data_ = new_buffer;
+    external_.data_ = new_buffer.release();
     external_.capacity_ = new_cap;
   }
 
@@ -171,7 +187,10 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     auto external_ptr_copy = external_.data_;
     auto external_capacity_copy = external_.capacity_;
     new (&inline_) decltype(inline_)();
+
+    // TODO: if this throws an exception it is a bad time
     std::uninitialized_move_n(external_ptr_copy, count_, inline_as_datatype());
+
     std::destroy_n(external_ptr_copy, count_);
     get_allocator().deallocate(external_ptr_copy, external_capacity_copy);
   }
@@ -198,9 +217,18 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
 
   template<typename C1, typename C2>
   inline static void one_alloc_swap(C1& allocating, C2& remaining) {
-    auto new_data = allocating.access_allocator().allocate(remaining.count_);
     auto new_data_size = remaining.count_;
-    std::uninitialized_move_n(remaining.begin(), new_data_size, new_data);
+    int flag { 0 };
+    auto deleter = [&](DataType* ptr) {
+      if (flag) {
+        std::destroy_n(ptr, new_data_size);
+      }
+      allocating.access_allocator().deallocate(ptr, new_data_size);
+    };
+    std::unique_ptr<DataType, decltype(deleter)> new_data(
+        allocating.access_allocator().allocate(new_data_size), deleter);
+    std::uninitialized_move_n(remaining.begin(), new_data_size, new_data.get());
+    ++flag;
     std::destroy(remaining.begin(), remaining.end()); // could be benificial here to add branches to save destructions on complicated types
     std::uninitialized_move_n(allocating.begin(), allocating.count_,
                               remaining.begin());
@@ -214,7 +242,7 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     allocating.clear();
     std::destroy_at(&allocating.inline_);
     allocating.count_ = allocating.external_.capacity_ = new_data_size;
-    allocating.external_.data_ = new_data;
+    allocating.external_.data_ = new_data.release();
   }
 
  public:
@@ -234,20 +262,38 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     } else if (that_is_sufficient) {
       one_alloc_swap(*this, that);
     } else {
-      auto new_this = access_allocator().allocate(that.count_);
+      int new_this_constructed{0};
       auto new_this_size = that.count_;
-      auto new_that = that.access_allocator().allocate(count_);
+      auto this_deleter = [&](DataType* ptr) {
+        if (new_this_constructed) {
+          std::destroy_n(ptr, new_this_size);
+        }
+        access_allocator().deallocate(ptr, new_this_size);
+      };
+      std::unique_ptr<DataType, decltype(this_deleter)> new_this(
+          access_allocator().allocate(that.count_), this_deleter);
+      int new_that_constructed{0};
       auto new_that_size = count_;
-      std::uninitialized_move_n(that.begin(), that.count_, new_this);
-      std::uninitialized_move_n(begin(), count_, new_that);
+      auto that_deleter = [&](DataType* ptr) {
+        if (new_that_constructed) {
+          std::destroy_n(ptr, new_that_size);
+        }
+        that.access_allocator().deallocate(ptr, new_that_size);
+      };
+      std::unique_ptr<DataType, decltype(that_deleter)> new_that(
+          that.access_allocator().allocate(count_), that_deleter);
+      std::uninitialized_move_n(that.begin(), that.count_, new_this.get());
+      ++new_this_constructed;
+      std::uninitialized_move_n(begin(), count_, new_that.get());
+      ++new_that_constructed;
       clear();
       that.clear();
       std::destroy_at(&inline_);
       std::destroy_at(&that.inline_);
       that.external_.capacity_ = that.count_ = new_that_size;
-      that.external_.data_ = new_that;
+      that.external_.data_ = new_that.release();
       external_.capacity_ = count_ = new_this_size;
-      external_.data_ = new_this;
+      external_.data_ = new_this.release();
       // No internalizations are possible here as capacity has a lower bound
       // and this and that are both insufficiant
     }
@@ -290,27 +336,38 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     // immediately.
 
     capacity = std::max(capacity, SuggestGrowth(count_));
-    DataType* new_data = access_allocator().allocate(capacity);
-    // TODO if using exceptions, throw bad_alloc on nullptr
-    std::uninitialized_move_n(begin(), count_, new_data);
+
+    auto deleter = [&](DataType* ptr) {
+      // no deconstructs, only exception possible is durign construction
+      access_allocator().deallocate(ptr, capacity);
+    };
+
+    std::unique_ptr<DataType, decltype(deleter)> new_data(
+        access_allocator().allocate(capacity), deleter);
+    std::uninitialized_move_n(begin(), count_, new_data.get());
     std::destroy(begin(), end());
     if (count_ > BufferSize) {
       access_allocator().deallocate(external_.data_, external_.capacity_);
     }
-    external_.data_ = new_data;
+    external_.data_ = new_data.release();
     external_.capacity_ = capacity;
   }
 
   void shrink_to_fit() {
     // requires count_ > BufferSize
     // requires count_ < external_.capacity_
-    DataType* new_data = get_allocator().allocate(count_);
-    // TODO if using exceptions, throw bad_alloc on nullptr
-    std::uninitialized_move_n(begin(), count_, new_data);
+    auto deleter = [&](DataType* ptr) {
+      // no deconstructs, only exception possible is during construction
+      access_allocator().deallocate(ptr, count_);
+    };
+    std::unique_ptr<DataType, decltype(deleter)> new_data(
+        get_allocator().allocate(count_), deleter);
+
+    std::uninitialized_move_n(begin(), count_, new_data.get());
     std::destroy(begin(), end());
     get_allocator().deallocate(external_.data_,
                                external_.capacity_);
-    external_.data_ = new_data;
+    external_.data_ = new_data.release();
     external_.capacity_ = count_;
   }
 
@@ -331,8 +388,17 @@ struct VectorImpl : public SBOVectorBase<DataType, BufferSize, Allocator> {
     if (count_ == capacity())
       reserve(count_ + 1);
     ++count_;
+    auto on_exception = [&](size_t*) {
+      --count_;
+      if (count_ <= BufferSize) {
+        internalize();
+      }
+    };
+    std::unique_ptr<size_t, decltype(on_exception)> exception_hook(&count_,
+                                                                on_exception);
     DataType* out = begin() + count_ - 1;
     new (out) DataType(std::forward<Args>(args)...);
+    exception_hook.release();
     return *out;
   }
 };
