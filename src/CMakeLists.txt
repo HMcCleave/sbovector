@@ -11,4 +11,5 @@ CREATE_UNITTEST(all
     sbovector.hpp
     swap_unittests.cpp
     unittest_common.hpp
+    unittest_common.cpp
 )

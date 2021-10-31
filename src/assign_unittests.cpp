@@ -2,6 +2,9 @@
 
 // Unittests for operator=, assign methods
 TYPED_TEST(CopyableSBOVector_, MustCopyAssign) {
+  using ContainerType = decltype(this->regular_container_);
+  using DataType = typename ContainerType::value_type;
+  using AllocatorType = typename ContainerType::allocator_type;
   {
     const ContainerType original(SMALL_SIZE);
     ContainerType copy;
@@ -23,6 +26,9 @@ TYPED_TEST(CopyableSBOVector_, MustCopyAssign) {
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustCopyAssign) {
+  using ContainerType = decltype(this->regular_container_);
+  using DataType = typename ContainerType::value_type;
+  using AllocatorType = typename ContainerType::allocator_type;
   {
     const ContainerType original(SMALL_SIZE, create_allocator());
     ContainerType copy(create_allocator());
@@ -74,6 +80,9 @@ TEST(ValueVerifiedSBOVector, MustCopyAssign) {
 }
 
 TYPED_TEST(SBOVector_, MustMoveAssign) {
+  using ContainerType = decltype(this->regular_container_);
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   {
     {
       ContainerType original(SMALL_SIZE);
@@ -97,6 +106,9 @@ TYPED_TEST(SBOVector_, MustMoveAssign) {
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustMoveAssign) {
+  using ContainerType = decltype(this->regular_container_);
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   {
     ContainerType original(SMALL_SIZE, create_allocator());
     ContainerType copy(create_allocator());
@@ -145,6 +157,9 @@ TEST(ValueVerifiedSBOVector, MustMoveAssign) {
 }
 
 TYPED_TEST(CopyableSBOVector_, MustAssignFromInitializerList) {
+  using ContainerType = decltype(this->regular_container_);
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   std::initializer_list<DataType> il{DataType(), DataType(), DataType()};
   ContainerType operated;
   ContainerType methoded;
@@ -155,6 +170,9 @@ TYPED_TEST(CopyableSBOVector_, MustAssignFromInitializerList) {
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustAssignFromInitializerList) {
+  using ContainerType = decltype(this->regular_container_);
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   std::initializer_list<DataType> il{DataType(), DataType(), DataType()};
   ContainerType operated(create_allocator());
   ContainerType methoded(create_allocator());
@@ -177,6 +195,9 @@ TEST(ValueVerifiedSBOVector, MustAssignFromInitializerList) {
 }
 
 TYPED_TEST(CopyableSBOVector_, MustAssignCountOfValues) {
+  using ContainerType = decltype(this->regular_container_);
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   ContainerType container;
 
   // inline -> inline
@@ -197,6 +218,9 @@ TYPED_TEST(CopyableSBOVector_, MustAssignCountOfValues) {
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustAssignCountOfValues) {
+  using ContainerType = decltype(this->regular_container_);
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   ContainerType container{create_allocator()};
   container.assign(SMALL_SIZE, DataType());
   UseElements(container);
@@ -234,6 +258,9 @@ TEST(ValueVerifiedSBOVector, MustAssignCountOfValues) {
 }
 
 TYPED_TEST(CopyableSBOVector_, MustAssignRange) {
+  using ContainerType = decltype(this->regular_container_);
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   std::vector<DataType> vec;
   ContainerType container;
 
@@ -259,6 +286,9 @@ TYPED_TEST(CopyableSBOVector_, MustAssignRange) {
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustAssignRange) {
+  using ContainerType = decltype(this->regular_container_);
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   std::vector<DataType> vec;
   ContainerType container(create_allocator());
 
