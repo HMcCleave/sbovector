@@ -9,7 +9,7 @@
 #include <vector>
 
 // Some benchmarks to help with improving SBOVector,
-// Test improvements in sbovector_candate.hpp to have a point of comparison
+// Test improvements against sbovector_old.hpp to have a point of comparison
 // Bear in mind, many compilers heavily optimize std::vector
 // and benchmark::DoNotOptimize has its limitations as to what it forces preservation of
 // in optimized builds so these benchmarks should be treated with heavy, heavy skepticism.
