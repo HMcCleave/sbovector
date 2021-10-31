@@ -190,8 +190,8 @@ struct OperationCounter {
 
 template <typename Data, typename Alloc = std::allocator<Data>>
 struct TypeHelper {
-  typedef typename Data DataType;
-  typedef typename Alloc AllocatorType;
+  typedef Data DataType;
+  typedef Alloc AllocatorType;
 };
 
 template <typename T>
@@ -256,8 +256,8 @@ typedef ::testing::Types<TypeHelper<Trivial>,
     AllTestCases;
 
 
-TYPED_TEST_CASE(SBOVector_, AllTestCases);
-TYPED_TEST_CASE(CopyableSBOVector_, CopyableTestCases);
+TYPED_TEST_SUITE(SBOVector_, AllTestCases);
+TYPED_TEST_SUITE(CopyableSBOVector_, CopyableTestCases);
 
 template <typename Range1, typename Range2>
 void EXPECT_RANGE_EQ(const Range1& A, const Range2& B) {
@@ -275,20 +275,20 @@ void EXPECT_RANGE_EQ(const Range1& A, const Range2& B) {
   }
 }
 
-template <size_t... Values>
-constexpr std::vector<int> vector_from_sequence() {
+template <auto... Values>
+std::vector<int> vector_from_sequence() {
   return std::vector<int>{Values...};
 }
 
-template <int... Values>
-constexpr std::vector<int> vector_from_sequence(
+template <auto... Values>
+std::vector<int> vector_from_sequence(
     std::integer_sequence<size_t, Values...>) {
   return vector_from_sequence<Values...>();
 }
 
-template <size_t V>
-constexpr std::vector<int> make_vector_sequence() {
-  return vector_from_sequence(std::make_index_sequence<V>());
+template <auto V>
+std::vector<int> make_vector_sequence() {
+  return vector_from_sequence(std::make_index_sequence<(int)V>());
 }
 
 #endif  // UNITTEST_COMMON_HPP

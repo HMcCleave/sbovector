@@ -4,8 +4,8 @@
 
 TYPED_TEST(SBOVector_, MustReserveIfExternal) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   ContainerType container(LARGE_SIZE);
   container.reserve_if_external(LARGE_SIZE * 2);
   EXPECT_EQ(container.capacity(), LARGE_SIZE * 2);
@@ -13,8 +13,8 @@ TYPED_TEST(SBOVector_, MustReserveIfExternal) {
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustReserveIfExternal) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   ContainerType container(LARGE_SIZE, create_allocator());
   container.reserve_if_external(LARGE_SIZE * 2);
   UseElements(container);
@@ -22,8 +22,8 @@ TEST_F(DataTypeOperationTrackingSBOVector, MustReserveIfExternal) {
 
 TYPED_TEST(SBOVector_, MustShrinkToFitIfExternal) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   ContainerType container(LARGE_SIZE);
   container.reserve_if_external(LARGE_SIZE * 2);
   container.shrink_to_fit_if_external();
@@ -31,8 +31,8 @@ TYPED_TEST(SBOVector_, MustShrinkToFitIfExternal) {
 }
 TEST_F(DataTypeOperationTrackingSBOVector, MustShrinkToFitIfExternal) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   ContainerType container(LARGE_SIZE, create_allocator());
   container.reserve_if_external(LARGE_SIZE * 2);
   container.shrink_to_fit_if_external();

@@ -4,8 +4,8 @@
 
 TYPED_TEST(SBOVector_, MustIterateViaMutableBeginEnd) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   size_t count{0};
   auto null_op = [&](DataType&) { ++count; };
   ContainerType container(SMALL_SIZE);
@@ -39,8 +39,8 @@ TEST(ValueVerifiedSBOVector, MustIterateViaMutableBeginEnd) {
 
 TYPED_TEST(SBOVector_, MustIterateViaConstBeginEnd) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   size_t count{0};
   auto null_op = [&](const DataType&) { ++count; };
   const ContainerType small(SMALL_SIZE), large(LARGE_SIZE);
@@ -72,8 +72,8 @@ TEST(ValueVerifiedSBOVector, MustIterateViaConstBeginEnd) {
 
 TYPED_TEST(SBOVector_, MustIterateViaCBeginCEnd) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   size_t count{0};
   auto null_op = [&](const DataType&) { ++count; };
   const ContainerType small(SMALL_SIZE), large(LARGE_SIZE);
@@ -107,8 +107,8 @@ TEST(ValueVerifiedSBOVector, MustIterateViaCBeginCEnd) {
 
 TYPED_TEST(SBOVector_, MustIterateViaMutableRBeginREnd) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   size_t count{0};
   auto null_op = [&](DataType&) { ++count; };
   ContainerType container(SMALL_SIZE);
@@ -142,8 +142,8 @@ TEST(ValueVerifiedSBOVector, MustIterateViaMutableRBeginREnd) {
 
 TYPED_TEST(SBOVector_, MustIterateViaConstRBeginREnd) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   size_t count{0};
   auto null_op = [&](const DataType&) { ++count; };
   const ContainerType small(SMALL_SIZE), large(LARGE_SIZE);
@@ -177,8 +177,8 @@ TEST(ValueVerifiedSBOVector, MustIterateViaConstRBeginREnd) {
 
 TYPED_TEST(SBOVector_, MustIterateViaCRBeginCREnd) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   size_t count{0};
   auto null_op = [&](const DataType&) { ++count; };
   const ContainerType small(SMALL_SIZE), large(LARGE_SIZE);
@@ -275,8 +275,8 @@ TEST(ValueVerifiedSBOVector, MustAccessViaFrontAndBack) {
 
 TYPED_TEST(SBOVector_, MustReportSize) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   ContainerType empty{}, small(SMALL_SIZE), large(LARGE_SIZE);
   EXPECT_EQ(empty.size(), 0);
   EXPECT_EQ(small.size(), SMALL_SIZE);

@@ -4,8 +4,8 @@
 
 TYPED_TEST(SBOVector_, MustDefaultConstruct) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   ContainerType container{};
   EXPECT_EQ(container.size(), 0);
   EXPECT_TRUE(container.empty());
@@ -13,8 +13,8 @@ TYPED_TEST(SBOVector_, MustDefaultConstruct) {
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustDefaultConstructWithAllocator) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   ContainerType container{create_allocator()};
   EXPECT_EQ(container.size(), 0);
   EXPECT_TRUE(container.empty());
@@ -22,8 +22,8 @@ TEST_F(DataTypeOperationTrackingSBOVector, MustDefaultConstructWithAllocator) {
 
 TYPED_TEST(SBOVector_, MustConstructCount) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   ContainerType small(SMALL_SIZE);
   EXPECT_EQ(small.size(), SMALL_SIZE);
   EXPECT_EQ(small.capacity(), SBO_SIZE);
@@ -36,8 +36,8 @@ TYPED_TEST(SBOVector_, MustConstructCount) {
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustConstructCount) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   ContainerType small(SMALL_SIZE, create_allocator());
   EXPECT_EQ(small.size(), SMALL_SIZE);
   EXPECT_EQ(small.capacity(), SBO_SIZE);
@@ -78,8 +78,8 @@ TEST(ValueVerifiedSBOVector, MustConstructCountValue) {
 
 TYPED_TEST(CopyableSBOVector_, MustConstructFromInitializerList) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   std::initializer_list<DataType> list{
       DataType(), DataType(), DataType(), DataType(),
       DataType(), DataType(), DataType(), DataType(),
@@ -91,8 +91,8 @@ TYPED_TEST(CopyableSBOVector_, MustConstructFromInitializerList) {
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustConstructFromInitializerList) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   std::initializer_list<DataType> list{
       DataType(), DataType(), DataType(), DataType(),
       DataType(), DataType(), DataType(), DataType(),
@@ -112,8 +112,8 @@ TEST(ValueVerifiedSBOVector, MustConstructFromInitializerList) {
 
 TYPED_TEST(CopyableSBOVector_, MustConstructFromRange) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   {
     std::vector<DataType> vec(SMALL_SIZE);
     ContainerType container(vec.begin(), vec.end());
@@ -128,8 +128,8 @@ TYPED_TEST(CopyableSBOVector_, MustConstructFromRange) {
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustConstructFromRange) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   {
     std::vector<DataType> vec(SMALL_SIZE);
     ContainerType container(vec.begin(), vec.end(), create_allocator());
@@ -159,8 +159,8 @@ TEST(ValueVerifiedSBOVector, MustConstructFromRange) {
 
 TYPED_TEST(CopyableSBOVector_, MustCopyConstruct) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   {
     const ContainerType old(SMALL_SIZE);
     ContainerType new_(old);
@@ -180,8 +180,8 @@ TYPED_TEST(CopyableSBOVector_, MustCopyConstruct) {
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustCopyConstruct) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   {
     const ContainerType old(SMALL_SIZE, create_allocator());
     ContainerType new_(old);
@@ -229,8 +229,8 @@ TEST(ValueVerifiedSBOVector, MustCopyConstruct) {
 
 TYPED_TEST(SBOVector_, MustMoveConstruct) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   {
     ContainerType old(SMALL_SIZE);
     ContainerType new_(std::move(old));
@@ -250,8 +250,8 @@ TYPED_TEST(SBOVector_, MustMoveConstruct) {
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustMoveConstruct) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = ContainerType::value_type;
-  using AllocatorType = ContainerType::allocator_type;
+  using DataType = typename ContainerType::value_type;
+ using AllocatorType = typename ContainerType::allocator_type;
   {
     ContainerType old(SMALL_SIZE, create_allocator());
     ContainerType new_(std::move(old));

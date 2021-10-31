@@ -10,15 +10,9 @@ endif()
 
 include(${CMAKE_BINARY_DIR}/conan.cmake)
 
-if(NOT CONAN_PROFILE) # a Conan profile "emscripten" should be present for builds targetting said platform
-  set(CONAN_PROFILE "default")
-endif()
-
 conan_cmake_autodetect(settings)
 
 conan_cmake_run(
-  PROFILE
-    ${CONAN_PROFILE}
   REQUIRES
     ${CONAN_EXTRA_REQUIRES}
   OPTIONS
