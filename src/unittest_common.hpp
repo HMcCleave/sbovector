@@ -67,22 +67,22 @@ class NonTrivial {
   std::unique_ptr<int> val_;
 
  public:
-  NonTrivial() { val_ = std::make_unique<int>(42); }
+  NonTrivial() noexcept { val_ = std::make_unique<int>(42); }
 
   ~NonTrivial() {}
 
-  NonTrivial(const NonTrivial&) : NonTrivial() {}
+  NonTrivial(const NonTrivial&) noexcept : NonTrivial() {}
 
   NonTrivial(NonTrivial&&) noexcept : NonTrivial() {}
 
-  NonTrivial& operator=(const NonTrivial&) { return *this; }
+  NonTrivial& operator=(const NonTrivial&) noexcept { return *this; }
 
   NonTrivial& operator=(NonTrivial&&) noexcept { return *this; }
 };
 
 class MoveOnly {
  public:
-  MoveOnly() {}
+  MoveOnly() noexcept {}
   ~MoveOnly() {}
   MoveOnly(const MoveOnly&) = delete;
   MoveOnly(MoveOnly&&) noexcept {}
@@ -125,7 +125,7 @@ struct OperationCounter {
   bool moved_;
   bool constructed_;
   inline static OperationTotals TOTALS{};
-  OperationCounter() {
+  OperationCounter() noexcept {
     ++TOTALS.default_constructor_;
     moved_ = false;
     constructed_ = true;
@@ -139,7 +139,7 @@ struct OperationCounter {
     from.moved_ = true;
   }
 
-  OperationCounter(const OperationCounter& copy) { 
+  OperationCounter(const OperationCounter& copy) noexcept { 
     copy.Use();
     moved_ = false;
     constructed_ = true;
@@ -156,7 +156,7 @@ struct OperationCounter {
     return *this;
   }
 
-  OperationCounter& operator=(const OperationCounter& copy) {
+  OperationCounter& operator=(const OperationCounter& copy) noexcept {
     if (!constructed_) {
       on_uninit_use();
     }

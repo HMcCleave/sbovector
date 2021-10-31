@@ -1,14 +1,11 @@
 SBOVector is a quick project to implement a std::vector-esc vector /w a small buffer optimization using c++17
 
-Known Issue:
-Exception handling is a bit inconsistant, emplace_back will shrink container back to contain only constructed objects, however emplace(end(), ...) will not and will leave uninitialzed object at end()-1
-
-
 Future considerations:
 
 Split implementation into compact/fast_iteration, where fast iteration has a DataType* to the data outside of the union allowing access calls with no branching.
 
-Add testing for exception cases, currently unit tests don't verify that SBOVector can handle all possible exceptions correctly
+Add Exception Handling, currently all exceptions (except conditionally bad_alloc [define SBOVECTOR_THROW_BAD_ALLOC=true to enable]) invoke terminate (throw in no-throw method),
+there are static asserts (disabled via define SBOVECTOR_RELAX_EXCEPTION_REQUIREMENTS=true) that require DataType to be nothrow as required
 
 Add tests insuring requirements on limits to operations where possible, the std::vector specification provides some performance guarentees, most of those can be applied to SBOVector with the obvious exception of swap/move not being able to guarentee nomove/nocopy.
 
