@@ -613,6 +613,6 @@ class SBOVector {
   friend class SBOVector;
 };
 
-} // namespace old
+}  // namespace old
 
 #endif  // SBOVECTOR_OLD_HPP
