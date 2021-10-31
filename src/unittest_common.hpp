@@ -124,7 +124,7 @@ struct OperationCounter {
   };
   bool moved_;
   bool constructed_;
-  inline static OperationTotals TOTALS{};
+  static OperationTotals TOTALS;
   OperationCounter() noexcept {
     ++TOTALS.default_constructor_;
     moved_ = false;
@@ -198,7 +198,17 @@ template <typename T>
 struct SBOVector_ : public ::testing::Test {
   using DataType = typename T::DataType;
   using AllocatorType = typename T::AllocatorType;
-  using ContainerType = SBOVector<DataType, SBO_SIZE, AllocatorType>;
+
+  SBOVector<DataType, SBO_SIZE, AllocatorType> regular_container_;
+
+};
+
+template <typename T>
+struct CopyableSBOVector_ : public ::testing::Test {
+  using DataType = typename T::DataType;
+  using AllocatorType = typename T::AllocatorType;
+
+  SBOVector<DataType, SBO_SIZE, AllocatorType> regular_container_;
 };
 
 struct DataTypeOperationTrackingSBOVector : public ::testing::Test {
@@ -207,6 +217,8 @@ struct DataTypeOperationTrackingSBOVector : public ::testing::Test {
   using ContainerType = SBOVector<DataType, SBO_SIZE, AllocatorType>;
   AllocatorType::Totals totals_;
   AllocatorType create_allocator() { return AllocatorType(&totals_); }
+
+  ContainerType regular_container_ { create_allocator() };
 
   void SetUp() {
     OperationCounter::TOTALS.mutex_.lock();
@@ -242,9 +254,6 @@ typedef ::testing::Types<TypeHelper<Trivial>,
                          TypeHelper<NonTrivial>,
                          TypeHelper<MoveOnly>>
     AllTestCases;
-
-template<typename T>
-using CopyableSBOVector_ = SBOVector_<T>;
 
 
 TYPED_TEST_CASE(SBOVector_, AllTestCases);
