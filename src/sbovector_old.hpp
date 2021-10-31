@@ -123,6 +123,12 @@ struct VectorImpl final
     : public SBOVectorBase<DataType, BufferSize, Allocator> {
   using BaseType = SBOVectorBase<DataType, BufferSize, Allocator>;
 
+  using BaseType::access_allocator;
+  using BaseType::count_;
+  using BaseType::external_;
+  using BaseType::get_allocator;
+  using BaseType::inline_;
+
   VectorImpl() : BaseType() {}
   VectorImpl(const Allocator& alloc) : BaseType(alloc) {}
 
@@ -281,9 +287,7 @@ struct VectorImpl final
 
     if (!new_data) {
       SBOVECTOR_ASSERT(!SBOVECTOR_THROW_BAD_ALLOC, SBOVEC_OOM);
-      if constexpr (SBOVECTOR_THROW_BAD_ALLOC) {
-        throw std::bad_alloc;
-      }
+      throw std::bad_alloc();
     }
     std::uninitialized_move_n(remaining.begin(), new_data_size, new_data);
     std::destroy(remaining.begin(), remaining.end());
@@ -471,11 +475,12 @@ template <typename DataType,
 class SBOVector {
   static_assert(std::is_move_assignable_v<DataType>);
   static_assert(BufferSize > 0);
-  static_assert(std::is_convertible_v<std::allocator_traits<Allocator>::pointer,
-                                      DataType*>);
   static_assert(
-      std::is_convertible_v<std::allocator_traits<Allocator>::const_pointer,
-                            const DataType*>);
+      std::is_convertible_v<typename std::allocator_traits<Allocator>::pointer,
+                            DataType*>);
+  static_assert(std::is_convertible_v<
+                typename std::allocator_traits<Allocator>::const_pointer,
+                const DataType*>);
 
  private:
   details_::VectorImpl<DataType, BufferSize, Allocator> impl_;
@@ -533,8 +538,8 @@ class SBOVector {
 
   template <int OtherSize, typename AllocatorType>
   SBOVector(const SBOVector<DataType, OtherSize, AllocatorType>& copy,
-            const Allocator& alloc = Allocator())
-      : SBOVector(copy.begin(), copy.end(), alloc) SBOVECTOR_THROW_ALLOC {}
+            const Allocator& alloc = Allocator()) SBOVECTOR_THROW_ALLOC
+      : SBOVector(copy.begin(), copy.end(), alloc) {}
 
   SBOVector(SBOVector&& move_from) SBOVECTOR_THROW_ALLOC
       : SBOVector(move_from.get_allocator()) {
@@ -620,7 +625,7 @@ class SBOVector {
   [[nodiscard]] reference at(size_t index) noexcept {
     return *(begin() + index);
   }
-  [[nodiscard]] const_reference at(size_t) const noexcept {
+  [[nodiscard]] const_reference at(size_t index) const noexcept {
     return *(cbegin() + index);
   }
 
