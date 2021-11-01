@@ -85,13 +85,14 @@ template <
 struct SBOVectorBase : private Allocator {
   using AlignedStorage =
       std::aligned_storage_t<sizeof(DataType), alignof(DataType)>;
+  struct ExternalData {
+    DataType* data_;
+    size_t capacity_;
+  };
   size_t count_;
   union {
     std::array<AlignedStorage, BufferSize> inline_;
-    struct {
-      DataType* data_;
-      size_t capacity_;
-    } external_;
+    ExternalData external_;
   };
 
   SBOVectorBase() : Allocator(), count_(0), inline_() {}
@@ -110,13 +111,14 @@ struct SBOVectorBase<DataType, BufferSize, Allocator, false> {
   using AlignedStorage =
       std::aligned_storage_t<sizeof(DataType), alignof(DataType)>;
   Allocator alloc_;
+  struct ExternalData {
+    DataType* data_;
+    size_t capacity_;
+  };
   size_t count_;
   union {
     std::array<AlignedStorage, BufferSize> inline_;
-    struct {
-      DataType* data_;
-      size_t capacity_;
-    } external_;
+    ExternalData external_;
   };
 
   SBOVectorBase() : alloc_(), count_(0), inline_() {}
@@ -637,7 +639,7 @@ class SBOVector {
     typename = std::enable_if_t<details_::is_iterator_v<InputIt>>
   >
   void assign(InputIt p_begin, InputIt p_end) SBOVECTOR_THROW_ALLOC {
-    auto new_size = (size_t)std::distance(p_begin, p_end);
+    auto new_size = static_cast<size_t>(std::distance(p_begin, p_end));
     for (auto iter = begin(), end_ = end(); iter != end_ && p_begin != p_end;
          ++iter, ++p_begin) {
       *iter = *p_begin;
@@ -700,12 +702,14 @@ class SBOVector {
   [[nodiscard]] const_reverse_iterator crbegin() const noexcept {
     return rbegin();
   }
-  [[nodiscard]] reverse_iterator rend() noexcept { return rbegin() + size(); }
+  [[nodiscard]] reverse_iterator rend() noexcept {
+    return std::make_reverse_iterator(begin());
+  }
   [[nodiscard]] const_reverse_iterator rend() const noexcept {
-    return rbegin() + size();
+    return std::make_reverse_iterator(cbegin());
   }
   [[nodiscard]] const_reverse_iterator crend() const noexcept {
-    return crbegin() + size();
+    return rend();
   }
 
   [[nodiscard]] bool empty() const noexcept { return 0 == size(); }
@@ -735,7 +739,7 @@ class SBOVector {
   }
 
   iterator insert(const_iterator pos, DataType&& mv) SBOVECTOR_THROW_ALLOC {
-    size_t i_pos = std::distance(cbegin(), pos);
+    const auto i_pos = static_cast<size_t>(std::distance(cbegin(), pos));
     impl_.insert_unninitialized(i_pos, 1);
     auto out = begin() + i_pos;
     new (out) DataType(std::move(mv));
@@ -747,7 +751,7 @@ class SBOVector {
         size_t count,
         const DataType& v
       ) SBOVECTOR_THROW_ALLOC {
-    size_t i_pos = std::distance(cbegin(), pos);
+    const auto i_pos = static_cast<size_t>(std::distance(cbegin(), pos));
     impl_.insert_unninitialized(i_pos, count);
     std::uninitialized_fill_n(begin() + i_pos, count, v);
     return begin() + i_pos;
@@ -762,8 +766,8 @@ class SBOVector {
         InputIt p_begin,
         InputIt p_end
       ) SBOVECTOR_THROW_ALLOC {
-    size_t i_pos = std::distance(cbegin(), pos);
-    impl_.insert_unninitialized(i_pos, std::distance(p_begin, p_end));
+    const auto i_pos = static_cast<size_t>(std::distance(cbegin(), pos));
+    impl_.insert_unninitialized(i_pos, static_cast<size_t>(std::distance(p_begin, p_end)));
     for (auto iter = begin() + i_pos; p_begin != p_end; ++p_begin, ++iter) {
       new (iter) DataType(*p_begin);
     }
@@ -779,7 +783,7 @@ class SBOVector {
 
   template <typename... Args>
   iterator emplace(const_iterator pos, Args&&... args) SBOVECTOR_THROW_ALLOC {
-    size_t i_pos = std::distance(cbegin(), pos);
+    auto i_pos = static_cast<size_t>(std::distance(cbegin(), pos));
     impl_.insert_unninitialized(i_pos, 1);
     auto out = begin() + i_pos;
     new (out) DataType(std::forward<Args>(args)...);
@@ -789,7 +793,7 @@ class SBOVector {
   iterator erase(const_iterator pos) noexcept { return impl_.erase(pos, 1); }
 
   iterator erase(const_iterator p_begin, const_iterator p_end) noexcept {
-    return impl_.erase(p_begin, std::distance(p_begin, p_end));
+    return impl_.erase(p_begin, static_cast<size_t>(std::distance(p_begin, p_end)));
   }
 
   void push_back(const DataType& value) SBOVECTOR_THROW_ALLOC {

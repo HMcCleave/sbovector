@@ -1,7 +1,7 @@
 # from here:
 #
 # https://github.com/lefticus/cppbestpractices/blob/master/02-Use_the_Tools_Available.md
-option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" TRUE)
+option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" FALSE)
 
 set(MSVC_WARNINGS
       /W4 # Baseline reasonable warnings (can't use Wall with std library)
@@ -77,7 +77,7 @@ set(GCC_WARNINGS
 
   if(MSVC)
     set(CPP_WARNINGS ${MSVC_WARNINGS} /Za)
-  elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CPP_WARNINGS ${CLANG_WARNINGS})
   else()
     set(CPP_WARNINGS ${GCC_WARNINGS})

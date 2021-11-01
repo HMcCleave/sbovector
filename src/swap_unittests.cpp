@@ -4,8 +4,6 @@
 
 TYPED_TEST(SBOVector_, MustSwap) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = typename ContainerType::value_type;
- using AllocatorType = typename ContainerType::allocator_type;
   { 
     ContainerType a;
     ContainerType b(SMALL_SIZE);
@@ -22,8 +20,6 @@ TYPED_TEST(SBOVector_, MustSwap) {
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustSwap) {
   using ContainerType = decltype(this->regular_container_);
-  using DataType = typename ContainerType::value_type;
- using AllocatorType = typename ContainerType::allocator_type;
   ContainerType a(create_allocator());
   ContainerType b(SMALL_SIZE, create_allocator());
   ContainerType c(LARGE_SIZE, create_allocator());
@@ -66,7 +62,7 @@ TEST(ValueVerifiedSBOVector, MustSwap) {
 TYPED_TEST(SBOVector_, MustSwapAsymmetric) {
   using ContainerType = decltype(this->regular_container_);
   using DataType = typename ContainerType::value_type;
- using AllocatorType = typename ContainerType::allocator_type;
+  using AllocatorType = typename ContainerType::allocator_type;
   { // inline to insufficient inline
     ContainerType a(SBO_SIZE);
     SBOVector<DataType, SMALL_SIZE, AllocatorType> b(SMALL_SIZE);
@@ -93,7 +89,7 @@ TYPED_TEST(SBOVector_, MustSwapAsymmetric) {
 TEST_F(DataTypeOperationTrackingSBOVector, MustSwapAsymmetric) {
   using ContainerType = decltype(this->regular_container_);
   using DataType = typename ContainerType::value_type;
- using AllocatorType = typename ContainerType::allocator_type;
+  using AllocatorType = typename ContainerType::allocator_type;
   {  // inline to insufficient inline
     ContainerType a(SBO_SIZE, create_allocator());
     SBOVector<DataType, SMALL_SIZE, AllocatorType> b(SMALL_SIZE,
@@ -156,7 +152,6 @@ TEST(ValueVerifiedSBOVector, MustSwapAsymmetric) {
 TEST_F(DataTypeOperationTrackingSBOVector, MustSwapAsymmetricAllocators) {
   using ContainerType = decltype(this->regular_container_);
   using DataType = typename ContainerType::value_type;
- using AllocatorType = typename ContainerType::allocator_type;
   {  // inline to insufficient inline
     ContainerType a(SBO_SIZE, create_allocator());
     SBOVector<DataType, SMALL_SIZE> b(SMALL_SIZE);

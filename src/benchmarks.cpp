@@ -49,7 +49,7 @@ template<typename ContainerType>
 void BM_RangeConstructor(benchmark::State& state) {
   using DataType = std::remove_reference_t<decltype(std::declval<ContainerType>().at(0))>;
   std::vector<DataType> vec;
-  vec.reserve(state.range(0));
+  vec.reserve(static_cast<size_t>(state.range(0)));
   for (auto i = 0u; i < state.range(0); ++i) {
     vec.push_back(CreateValueForContainer<ContainerType>());
   }
@@ -142,7 +142,7 @@ template<typename ContainerType>
 void BM_SequentialIteration(benchmark::State& state) {
   std::array<ContainerType, 1000> containers;
   const auto value = CreateValueForContainer<ContainerType>();
-  for (int i = 0; i < containers.size(); ++i) {
+  for (size_t i = 0u; i < containers.size(); ++i) {
     containers[i].assign((i % 997) ? (i % 2 ? 8 : 16) : 500, value);
   }
   for (auto _ : state) {

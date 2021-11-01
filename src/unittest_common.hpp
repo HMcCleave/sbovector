@@ -222,7 +222,7 @@ struct DataTypeOperationTrackingSBOVector : public ::testing::Test {
 
   void SetUp() {
     OperationCounter::TOTALS.mutex_.lock();
-    memset(&totals_, 0, sizeof(totals_));
+    totals_.allocs_ = totals_.frees_ = 0;
     OperationCounter::TOTALS.reset();
   }
 
@@ -288,7 +288,7 @@ std::vector<int> vector_from_sequence(
 
 template <auto V>
 std::vector<int> make_vector_sequence() {
-  return vector_from_sequence(std::make_index_sequence<(int)V>());
+  return vector_from_sequence(std::make_index_sequence<static_cast<int>(V)>());
 }
 
 #endif  // UNITTEST_COMMON_HPP
