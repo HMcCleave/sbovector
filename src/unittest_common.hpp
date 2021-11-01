@@ -36,7 +36,7 @@ struct CountingAllocator {
     ++totals_->allocs_;
     return reinterpret_cast<pointer>(new aligned_t[n]);
   }
-  void deallocate(pointer p, size_t n) {
+  void deallocate(pointer p, size_t) {
     ++totals_->frees_;
     delete[] reinterpret_cast<aligned_t*>(p);
   }

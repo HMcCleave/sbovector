@@ -26,7 +26,7 @@ namespace details_ {
 // but this will surpress a cavalcade of warnings
 #if SBO_VECTOR_THROW_BAD_ALLOC
 #define SBOVECTOR_DO_BAD_ALLOC_THROW throw std::bad_alloc()
-#else 
+#else
 #define SBOVECTOR_DO_BAD_ALLOC_THROW std::terminate()
 #endif
 
@@ -64,10 +64,10 @@ struct is_iterator {
 };
 
 template <typename T>
-struct is_iterator<T,
-                   typename std::enable_if<!std::is_same<
-                       typename std::iterator_traits<T>::value_type,
-                       void>::value>::type> {
+struct is_iterator<
+    T,
+    typename std::enable_if_t<
+        !std::is_same_v<typename std::iterator_traits<T>::value_type, void>>> {
   static constexpr bool value = true;
 };
 
@@ -383,10 +383,12 @@ struct VectorImpl final
       std::swap(count_, that.count_);
       std::swap(external_.data_, that.external_.data_);
       std::swap(external_.capacity_, that.external_.capacity_);
-      if (this_will_be_inline)
+      if (this_will_be_inline) {
         internalize();
-      if (that_will_be_inline)
+      }
+      if (that_will_be_inline) {
         that.internalize();
+      }
     } else if (this_is_inline && that_is_inline && this_will_be_inline &&
                that_will_be_inline) {
       no_alloc_swap(*this, that);
@@ -465,8 +467,9 @@ struct VectorImpl final
   DataType& emplace_back(Args&&... args) SBOVECTOR_THROW_ALLOC {
     static_assert(relax_except ||
                   std::is_nothrow_constructible_v<DataType, Args...>);
-    if (count_ == capacity())
+    if (count_ == capacity()) {
       reserve(count_ + 1);
+    }
     ++count_;
     DataType* out = begin() + count_ - 1;
     new (out) DataType(std::forward<Args>(args)...);
@@ -609,7 +612,7 @@ class SBOVector {
   template <typename InputIt,
             typename = std::enable_if_t<details_::is_iterator_v<InputIt>>>
   void assign(InputIt p_begin, InputIt p_end) SBOVECTOR_THROW_ALLOC {
-    auto new_size = std::distance(p_begin, p_end);
+    auto new_size = (size_t)std::distance(p_begin, p_end);
     for (auto iter = begin(), end_ = end(); iter != end_ && p_begin != p_end;
          ++iter, ++p_begin) {
       *iter = *p_begin;

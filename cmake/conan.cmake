@@ -14,9 +14,9 @@ conan_cmake_autodetect(settings)
 
 conan_cmake_run(
   REQUIRES
-    ${CONAN_EXTRA_REQUIRES}
+    ${CONAN_REQUIRES}
   OPTIONS
-    ${CONAN_EXTRA_OPTIONS}
+    ${CONAN_OPTIONS}
   CMAKE_TARGETS
   BASIC_SETUP
   BUILD
