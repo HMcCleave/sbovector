@@ -1,7 +1,7 @@
 # from here:
 #
 # https://github.com/lefticus/cppbestpractices/blob/master/02-Use_the_Tools_Available.md
-option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" FALSE)
+option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" TRUE)
 
 set(MSVC_WARNINGS
       /W4 # Baseline reasonable warnings (can't use Wall with std library)

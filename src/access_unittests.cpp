@@ -3,11 +3,9 @@
 // Unittests for iteration (begin/end and variations there-of), at, front/back data, size, operator[] methods
 
 TYPED_TEST(SBOVector_, MustIterateViaMutableBeginEnd) {
-  using ContainerType = decltype(this->regular_container_);
-  using DataType = typename ContainerType::value_type;
   size_t count{0};
-  auto null_op = [&](DataType&) { ++count; };
-  ContainerType container(SMALL_SIZE);
+  auto container = this->CreateContainer(SMALL_SIZE);
+  auto null_op = [&](auto&) { ++count; };
   for (auto iter = container.begin(); iter != container.end(); ++iter)
     null_op(*iter);
   EXPECT_EQ(count, SMALL_SIZE);
@@ -37,11 +35,10 @@ TEST(ValueVerifiedSBOVector, MustIterateViaMutableBeginEnd) {
 }
 
 TYPED_TEST(SBOVector_, MustIterateViaConstBeginEnd) {
-  using ContainerType = decltype(this->regular_container_);
-  using DataType = typename ContainerType::value_type;
   size_t count{0};
-  auto null_op = [&](const DataType&) { ++count; };
-  const ContainerType small(SMALL_SIZE), large(LARGE_SIZE);
+  auto null_op = [&](const auto&) { ++count; };
+  const auto small = this->CreateContainer(SMALL_SIZE);
+  const auto large = this->CreateContainer(LARGE_SIZE);
   for (auto iter = small.begin(); iter != small.end(); ++iter)
     null_op(*iter);
   EXPECT_EQ(count, SMALL_SIZE);
@@ -69,11 +66,10 @@ TEST(ValueVerifiedSBOVector, MustIterateViaConstBeginEnd) {
 }
 
 TYPED_TEST(SBOVector_, MustIterateViaCBeginCEnd) {
-  using ContainerType = decltype(this->regular_container_);
-  using DataType = typename ContainerType::value_type;
   size_t count{0};
-  auto null_op = [&](const DataType&) { ++count; };
-  const ContainerType small(SMALL_SIZE), large(LARGE_SIZE);
+  auto null_op = [&](const auto&) { ++count; };
+  const auto small = this->CreateContainer(SMALL_SIZE);
+  const auto large = this->CreateContainer(LARGE_SIZE);
   for (auto iter = small.cbegin(); iter != small.cend(); ++iter)
     null_op(*iter);
   EXPECT_EQ(count, SMALL_SIZE);
@@ -103,11 +99,9 @@ TEST(ValueVerifiedSBOVector, MustIterateViaCBeginCEnd) {
 }
 
 TYPED_TEST(SBOVector_, MustIterateViaMutableRBeginREnd) {
-  using ContainerType = decltype(this->regular_container_);
-  using DataType = typename ContainerType::value_type;
   size_t count{0};
-  auto null_op = [&](DataType&) { ++count; };
-  ContainerType container(SMALL_SIZE);
+  auto container = this->CreateContainer(SMALL_SIZE);
+  auto null_op = [&](auto&) { ++count; };
   for (auto iter = container.rbegin(); iter != container.rend(); ++iter)
     null_op(*iter);
   EXPECT_EQ(count, SMALL_SIZE);
@@ -137,11 +131,10 @@ TEST(ValueVerifiedSBOVector, MustIterateViaMutableRBeginREnd) {
 }
 
 TYPED_TEST(SBOVector_, MustIterateViaConstRBeginREnd) {
-  using ContainerType = decltype(this->regular_container_);
-  using DataType = typename ContainerType::value_type;
   size_t count{0};
-  auto null_op = [&](const DataType&) { ++count; };
-  const ContainerType small(SMALL_SIZE), large(LARGE_SIZE);
+  auto null_op = [&](const auto&) { ++count; };
+  const auto small = this->CreateContainer(SMALL_SIZE);
+  const auto large = this->CreateContainer(LARGE_SIZE);
   for (auto iter = small.rbegin(); iter != small.rend(); ++iter)
     null_op(*iter);
   EXPECT_EQ(count, SMALL_SIZE);
@@ -171,11 +164,11 @@ TEST(ValueVerifiedSBOVector, MustIterateViaConstRBeginREnd) {
 }
 
 TYPED_TEST(SBOVector_, MustIterateViaCRBeginCREnd) {
-  using ContainerType = decltype(this->regular_container_);
-  using DataType = typename ContainerType::value_type;
   size_t count{0};
+  const auto small = this->CreateContainer(SMALL_SIZE);
+  const auto large = this->CreateContainer(LARGE_SIZE);
+  using DataType = typename decltype(small)::value_type;
   auto null_op = [&](const DataType&) { ++count; };
-  const ContainerType small(SMALL_SIZE), large(LARGE_SIZE);
   for (auto iter = small.crbegin(); iter != small.crend(); ++iter)
     null_op(*iter);
   EXPECT_EQ(count, SMALL_SIZE);
@@ -268,8 +261,9 @@ TEST(ValueVerifiedSBOVector, MustAccessViaFrontAndBack) {
 }
 
 TYPED_TEST(SBOVector_, MustReportSize) {
-  using ContainerType = decltype(this->regular_container_);
-  ContainerType empty{}, small(SMALL_SIZE), large(LARGE_SIZE);
+  auto empty = this->CreateContainer();
+  auto small = this->CreateContainer(SMALL_SIZE);
+  auto large = this->CreateContainer(LARGE_SIZE);
   EXPECT_EQ(empty.size(), 0);
   EXPECT_EQ(small.size(), SMALL_SIZE);
   EXPECT_EQ(large.size(), LARGE_SIZE);

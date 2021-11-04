@@ -1,7 +1,6 @@
 #include <benchmark/benchmark.h>
 
 #include "sbovector.hpp"
-#include "sbovector_old.hpp"
 
 #include <algorithm>
 #include <array>
@@ -330,10 +329,10 @@ void BM_Swap(benchmark::State& state) {
   SWAP_BENCHMARKS(TYPE)
 
 typedef SBOVector<int, 16> SBOVectorInt16;
-typedef old::SBOVector<int, 16> OldSBOVectorInt16;
+typedef SBOVector<int, 16, std::allocator<int>, true> CompactSBOVectorInt16;
 
-//SWAP_BENCHMARKS(std::vector<int>);
-TEMPLATE_ALL_BENCHMARKS(SBOVectorInt16);
-TEMPLATE_ALL_BENCHMARKS(OldSBOVectorInt16);
+ITERATION_BENCHMARKS(std::vector<int>);
+ITERATION_BENCHMARKS(SBOVectorInt16);
+ITERATION_BENCHMARKS(CompactSBOVectorInt16);
 
 BENCHMARK_MAIN();

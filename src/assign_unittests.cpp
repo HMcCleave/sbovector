@@ -2,23 +2,22 @@
 
 // Unittests for operator=, assign methods
 TYPED_TEST(CopyableSBOVector_, MustCopyAssign) {
-  using ContainerType = decltype(this->regular_container_);
-  using DataType = typename ContainerType::value_type;
-  using AllocatorType = typename ContainerType::allocator_type;
   {
-    const ContainerType original(SMALL_SIZE);
-    ContainerType copy;
+    const auto original = this->CreateContainer(SMALL_SIZE);
+    std::remove_const_t<decltype(original)> copy;
     copy = original;
     EXPECT_EQ(copy.size(), original.size());
   }
   {
-    const ContainerType original(LARGE_SIZE);
-    ContainerType copy;
+    const auto original = this->CreateContainer(LARGE_SIZE);
+    std::remove_const_t<decltype(original)> copy;
     copy = original;
     EXPECT_EQ(copy.size(), original.size());
   }
   {
-    const ContainerType original(LARGE_SIZE);
+    const auto original = this->CreateContainer(LARGE_SIZE);
+    using DataType = typename decltype(original)::value_type;
+    using AllocatorType = typename decltype(original)::allocator_type;
     SBOVector<DataType, SMALL_SIZE, AllocatorType> copy;
     copy = original;
     EXPECT_EQ(original.size(), copy.size());
@@ -26,9 +25,6 @@ TYPED_TEST(CopyableSBOVector_, MustCopyAssign) {
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustCopyAssign) {
-  using ContainerType = decltype(this->regular_container_);
-  using DataType = typename ContainerType::value_type;
-  using AllocatorType = typename ContainerType::allocator_type;
   {
     const ContainerType original(SMALL_SIZE, create_allocator());
     ContainerType copy(create_allocator());
@@ -80,24 +76,23 @@ TEST(ValueVerifiedSBOVector, MustCopyAssign) {
 }
 
 TYPED_TEST(SBOVector_, MustMoveAssign) {
-  using ContainerType = decltype(this->regular_container_);
-  using DataType = typename ContainerType::value_type;
- using AllocatorType = typename ContainerType::allocator_type;
   {
     {
-      ContainerType original(SMALL_SIZE);
-      ContainerType copy;
+      auto original = this->CreateContainer(SMALL_SIZE);
+      decltype(original) copy;
       copy = std::move(original);
       EXPECT_EQ(copy.size(), SMALL_SIZE);
     }
     {
-      ContainerType original(LARGE_SIZE);
-      ContainerType copy;
+      auto original = this->CreateContainer(LARGE_SIZE);
+      decltype(original) copy;
       copy = std::move(original);
       EXPECT_EQ(copy.size(), LARGE_SIZE);
     }
     {
-      ContainerType original(LARGE_SIZE);
+      auto original = this->CreateContainer(LARGE_SIZE);
+      using DataType = typename decltype(original)::value_type;
+      using AllocatorType = typename decltype(original)::allocator_type;
       SBOVector<DataType, SMALL_SIZE, AllocatorType> copy;
       copy = std::move(original);
       EXPECT_EQ(LARGE_SIZE, copy.size());
@@ -106,9 +101,6 @@ TYPED_TEST(SBOVector_, MustMoveAssign) {
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustMoveAssign) {
-  using ContainerType = decltype(this->regular_container_);
-  using DataType = typename ContainerType::value_type;
- using AllocatorType = typename ContainerType::allocator_type;
   {
     ContainerType original(SMALL_SIZE, create_allocator());
     ContainerType copy(create_allocator());
@@ -157,11 +149,10 @@ TEST(ValueVerifiedSBOVector, MustMoveAssign) {
 }
 
 TYPED_TEST(CopyableSBOVector_, MustAssignFromInitializerList) {
-  using ContainerType = decltype(this->regular_container_);
-  using DataType = typename ContainerType::value_type;
+  auto operated = this->CreateContainer();
+  auto methoded = this->CreateContainer();
+  using DataType = typename decltype(operated)::value_type;
   std::initializer_list<DataType> il{DataType(), DataType(), DataType()};
-  ContainerType operated;
-  ContainerType methoded;
   operated = il;
   methoded.assign(il);
   EXPECT_EQ(operated.size(), il.size());
@@ -169,8 +160,6 @@ TYPED_TEST(CopyableSBOVector_, MustAssignFromInitializerList) {
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustAssignFromInitializerList) {
-  using ContainerType = decltype(this->regular_container_);
-  using DataType = typename ContainerType::value_type;
   std::initializer_list<DataType> il{DataType(), DataType(), DataType()};
   ContainerType operated(create_allocator());
   ContainerType methoded(create_allocator());
@@ -193,9 +182,8 @@ TEST(ValueVerifiedSBOVector, MustAssignFromInitializerList) {
 }
 
 TYPED_TEST(CopyableSBOVector_, MustAssignCountOfValues) {
-  using ContainerType = decltype(this->regular_container_);
-  using DataType = typename ContainerType::value_type;
-  ContainerType container;
+  auto container = this->CreateContainer();
+  using DataType = typename decltype(container)::value_type;
 
   // inline -> inline
   container.assign(SMALL_SIZE, DataType());
@@ -215,8 +203,6 @@ TYPED_TEST(CopyableSBOVector_, MustAssignCountOfValues) {
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustAssignCountOfValues) {
-  using ContainerType = decltype(this->regular_container_);
-  using DataType = typename ContainerType::value_type;
   ContainerType container{create_allocator()};
   container.assign(SMALL_SIZE, DataType());
   UseElements(container);
@@ -254,10 +240,9 @@ TEST(ValueVerifiedSBOVector, MustAssignCountOfValues) {
 }
 
 TYPED_TEST(CopyableSBOVector_, MustAssignRange) {
-  using ContainerType = decltype(this->regular_container_);
-  using DataType = typename ContainerType::value_type;
+  auto container = this->CreateContainer();
+  using DataType = typename decltype(container)::value_type;
   std::vector<DataType> vec;
-  ContainerType container;
 
   // inline -> inline
   vec.assign(SMALL_SIZE, DataType());
@@ -281,8 +266,6 @@ TYPED_TEST(CopyableSBOVector_, MustAssignRange) {
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustAssignRange) {
-  using ContainerType = decltype(this->regular_container_);
-  using DataType = typename ContainerType::value_type;
   std::vector<DataType> vec;
   ContainerType container(create_allocator());
 
