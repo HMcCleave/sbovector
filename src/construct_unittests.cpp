@@ -97,7 +97,7 @@ TEST(ValueVerifiedSBOVector, MustConstructFromInitializerList) {
 
 TYPED_TEST(CopyableSBOVector_, MustConstructFromRange) {
   using ContainerType = decltype(this->CreateContainer());
-  using DataType = ContainerType::value_type;
+  using DataType = typename ContainerType::value_type;
   {
     std::vector<DataType> vec(SMALL_SIZE);
     ContainerType container(vec.begin(), vec.end());

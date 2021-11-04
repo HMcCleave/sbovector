@@ -86,8 +86,6 @@ TYPED_TEST(SBOVector_, MustSwapAsymmetric) {
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustSwapAsymmetric) {
-  using DataType = typename ContainerType::value_type;
-  using AllocatorType = typename ContainerType::allocator_type;
   {  // inline to insufficient inline
     ContainerType a(SBO_SIZE, create_allocator());
     SBOVector<DataType, SMALL_SIZE, AllocatorType> b(SMALL_SIZE,

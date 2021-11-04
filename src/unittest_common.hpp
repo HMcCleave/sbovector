@@ -198,8 +198,8 @@ template <typename T>
 struct SBOVector_ : public ::testing::Test {
   template<
     size_t Size = SBO_SIZE,
-    typename Allocator = T::AllocatorType,
-    typename DataType = T::DataType,
+    typename Allocator = typename T::AllocatorType,
+    typename DataType = typename T::DataType,
     typename... Args
   >
   auto CreateContainer(Args&&... args) {
@@ -210,7 +210,15 @@ struct SBOVector_ : public ::testing::Test {
 
 template <typename T>
 struct CopyableSBOVector_ : public SBOVector_<T> {
-  using SBOVector_::CreateContainer;
+  template<
+    size_t Size = SBO_SIZE,
+    typename Allocator = typename T::AllocatorType,
+    typename DataType = typename T::DataType,
+    typename... Args
+  >
+  auto CreateContainer(Args&&... args) {
+    return SBOVector<DataType, Size, Allocator>(std::forward<Args>(args)...);
+  }
 };
 
 struct DataTypeOperationTrackingSBOVector : public ::testing::Test {
@@ -258,8 +266,8 @@ typedef ::testing::Types<TypeHelper<Trivial>,
     AllTestCases;
 
 
-TYPED_TEST_SUITE(SBOVector_, AllTestCases);
-TYPED_TEST_SUITE(CopyableSBOVector_, CopyableTestCases);
+TYPED_TEST_SUITE(SBOVector_, AllTestCases, );
+TYPED_TEST_SUITE(CopyableSBOVector_, CopyableTestCases, );
 
 template <typename Range1, typename Range2>
 void EXPECT_RANGE_EQ(const Range1& A, const Range2& B) {
@@ -277,20 +285,20 @@ void EXPECT_RANGE_EQ(const Range1& A, const Range2& B) {
   }
 }
 
-template <auto... Values>
+template <size_t... Values>
 std::vector<int> vector_from_sequence() {
   return std::vector<int>{Values...};
 }
 
-template <auto... Values>
+template <size_t... Values>
 std::vector<int> vector_from_sequence(
     std::integer_sequence<size_t, Values...>) {
   return vector_from_sequence<Values...>();
 }
 
-template <auto V>
+template <size_t V>
 std::vector<int> make_vector_sequence() {
-  return vector_from_sequence(std::make_index_sequence<static_cast<int>(V)>());
+  return vector_from_sequence(std::make_index_sequence<V>());
 }
 
 #endif  // UNITTEST_COMMON_HPP

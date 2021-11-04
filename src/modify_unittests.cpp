@@ -572,7 +572,6 @@ TYPED_TEST(SBOVector_, MustResize) {
 }
 
 TEST_F(DataTypeOperationTrackingSBOVector, MustResize) {
-  using DataType = typename ContainerType::value_type;
   ContainerType c(SMALL_SIZE, create_allocator());
   c.resize(SBO_SIZE);
   EXPECT_EQ(c.size(), SBO_SIZE);

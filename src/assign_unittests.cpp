@@ -16,7 +16,9 @@ TYPED_TEST(CopyableSBOVector_, MustCopyAssign) {
   }
   {
     const auto original = this->CreateContainer(LARGE_SIZE);
-    auto copy = this->CreateContainer<SMALL_SIZE>();
+    using DataType = typename decltype(original)::value_type;
+    using AllocatorType = typename decltype(original)::allocator_type;
+    SBOVector<DataType, SMALL_SIZE, AllocatorType> copy;
     copy = original;
     EXPECT_EQ(original.size(), copy.size());
   }
@@ -89,7 +91,9 @@ TYPED_TEST(SBOVector_, MustMoveAssign) {
     }
     {
       auto original = this->CreateContainer(LARGE_SIZE);
-      auto copy = this->CreateContainer<SMALL_SIZE>();
+      using DataType = typename decltype(original)::value_type;
+      using AllocatorType = typename decltype(original)::allocator_type;
+      SBOVector<DataType, SMALL_SIZE, AllocatorType> copy;
       copy = std::move(original);
       EXPECT_EQ(LARGE_SIZE, copy.size());
     }
@@ -147,7 +151,7 @@ TEST(ValueVerifiedSBOVector, MustMoveAssign) {
 TYPED_TEST(CopyableSBOVector_, MustAssignFromInitializerList) {
   auto operated = this->CreateContainer();
   auto methoded = this->CreateContainer();
-  using DataType = decltype(operated)::value_type;
+  using DataType = typename decltype(operated)::value_type;
   std::initializer_list<DataType> il{DataType(), DataType(), DataType()};
   operated = il;
   methoded.assign(il);
@@ -179,7 +183,7 @@ TEST(ValueVerifiedSBOVector, MustAssignFromInitializerList) {
 
 TYPED_TEST(CopyableSBOVector_, MustAssignCountOfValues) {
   auto container = this->CreateContainer();
-  using DataType = decltype(container)::value_type;
+  using DataType = typename decltype(container)::value_type;
 
   // inline -> inline
   container.assign(SMALL_SIZE, DataType());
@@ -237,7 +241,7 @@ TEST(ValueVerifiedSBOVector, MustAssignCountOfValues) {
 
 TYPED_TEST(CopyableSBOVector_, MustAssignRange) {
   auto container = this->CreateContainer();
-  using DataType = decltype(container)::value_type;
+  using DataType = typename decltype(container)::value_type;
   std::vector<DataType> vec;
 
   // inline -> inline
