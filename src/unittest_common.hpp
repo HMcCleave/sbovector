@@ -196,19 +196,21 @@ struct TypeHelper {
 
 template <typename T>
 struct SBOVector_ : public ::testing::Test {
-  using DataType = typename T::DataType;
-  using AllocatorType = typename T::AllocatorType;
-
-  SBOVector<DataType, SBO_SIZE, AllocatorType> regular_container_;
+  template<
+    size_t Size = SBO_SIZE,
+    typename Allocator = T::AllocatorType,
+    typename DataType = T::DataType,
+    typename... Args
+  >
+  auto CreateContainer(Args&&... args) {
+    return SBOVector<DataType, Size, Allocator>(std::forward<Args>(args)...);
+  }
 
 };
 
 template <typename T>
-struct CopyableSBOVector_ : public ::testing::Test {
-  using DataType = typename T::DataType;
-  using AllocatorType = typename T::AllocatorType;
-
-  SBOVector<DataType, SBO_SIZE, AllocatorType> regular_container_;
+struct CopyableSBOVector_ : public SBOVector_<T> {
+  using SBOVector_::CreateContainer;
 };
 
 struct DataTypeOperationTrackingSBOVector : public ::testing::Test {
