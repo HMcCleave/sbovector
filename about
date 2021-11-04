@@ -2,8 +2,6 @@ SBOVector is a quick project to implement a std::vector-esc vector /w a small bu
 
 Future considerations:
 
-Split implementation into compact/fast_iteration, where fast iteration has a DataType* to the data outside of the union allowing access calls with no branching.
-
 Add Exception Handling, currently all exceptions (except conditionally bad_alloc [define SBOVECTOR_THROW_BAD_ALLOC=true to enable]) invoke terminate (throw in no-throw method),
 there are static asserts (disabled via define SBOVECTOR_RELAX_EXCEPTION_REQUIREMENTS=true) that require DataType to be nothrow as required
 
