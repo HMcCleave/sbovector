@@ -508,7 +508,7 @@ class SBOVector {
     >
   );
 
- public:
+ private:
   details_::VectorImpl<DataType, BufferSize, Allocator> impl_;
 
  public:
@@ -847,6 +847,9 @@ class SBOVector {
       SBOVECTOR_THROW_ALLOC {
     impl_.swap(that.impl_);
   }
+
+  template<typename DataType_, size_t BufferSize_, typename Allocator_>
+  friend class SBOVector;
 };
 
 #endif  // SBOVECTOR_HPP
