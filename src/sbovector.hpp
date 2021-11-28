@@ -14,24 +14,25 @@
 
 // if true: nullptr == allocator.allocate() will throw std::bad_alloc exception
 // if false: assert and terminate
-#ifndef SBOVECTOR_THROW_BAD_ALLOC
-#define SBOVECTOR_THROW_BAD_ALLOC false
+#ifndef SBOVECTOR_SHOULD_THROW_BAD_ALLOC
+#define SBOVECTOR_SHOULD_THROW_BAD_ALLOC false
 #endif
 
-#define SBOVECTOR_THROW_ALLOC noexcept(!SBOVECTOR_THROW_BAD_ALLOC)
+#define SBOVECTOR_NOEXCEPT_COND_ALLOC noexcept(!SBOVECTOR_SHOULD_THROW_BAD_ALLOC)
 
 namespace details_ {
 
 // throw within a noexcept is a call to terminate
 // but this will surpress a cavalcade of warnings
+// about intended throws in noexcept methods
 #if SBO_VECTOR_THROW_BAD_ALLOC
-#define SBOVECTOR_DO_BAD_ALLOC_THROW throw std::bad_alloc()
+#define SBOVECTOR_DO_BAD_ALLOC_THROW throw std::bad_alloc
 #else 
-#define SBOVECTOR_DO_BAD_ALLOC_THROW std::terminate()
+#define SBOVECTOR_DO_BAD_ALLOC_THROW std::terminate
 #endif
 
 #ifndef SBOVECTOR_ASSERT
-#define SBOVECTOR_ASSERT(cond, message) assert(cond&& message)
+#define SBOVECTOR_ASSERT(cond, message) assert(cond && message)
 #endif
 
 #define SBOVEC_OOM "SBOVector allocation failure (likely OOM)!"
@@ -43,10 +44,10 @@ namespace details_ {
 #define SBOVECTOR_RELAX_EXCEPTION_REQUIREMENTS false
 #endif
 
-constexpr bool relax_except = SBOVECTOR_RELAX_EXCEPTION_REQUIREMENTS;
+constexpr bool kRelaxedExceptions = SBOVECTOR_RELAX_EXCEPTION_REQUIREMENTS;
+constexpr size_t kSBOVectorGrowthFactor = 2;
 
 constexpr size_t SuggestGrowth(size_t old_size) {
-  constexpr size_t kSBOVectorGrowthFactor = 2;
   return old_size * kSBOVectorGrowthFactor;
 }
 
@@ -80,10 +81,16 @@ template<typename T>
 using AlignedStorage = std::aligned_storage_t<sizeof(T), alignof(T)>;
 
 
+// Responsibility of SBOVectorStorage:
+// encapsulate the union of inline_ and external_ data
+// and shared data members between the two representations
 template<typename DataType, size_t Capacity, bool compact>
 struct SBOVectorStorage;
 
 // Do Not Use this class directly, it is an incomplete helper class
+// Normally this would be a private member class, but as this is a header only library
+// in the interest of readability details are being seperated so the SBOVector interface is more
+// quickly readable for the general use case of looking at method signatures
 template<typename DataType, size_t Capacity>
 struct SBOVectorStorage<DataType, Capacity, true> {
   struct External {
@@ -147,6 +154,10 @@ struct SBOVectorStorage<DataType, Capacity, true> {
 };
 
 // Do Not Use this class directly, it is an incomplete helper class
+// Normally this would be a private member class, but as this is a header only
+// library in the interest of readability details are being seperated so the
+// SBOVector interface is more quickly readable for the general use case of
+// looking at method signatures
 template <typename DataType, size_t Capacity>
 struct SBOVectorStorage<DataType, Capacity, false> {
   size_t count_;
@@ -198,15 +209,29 @@ struct SBOVectorStorage<DataType, Capacity, false> {
   }
 };
 
+// Responsibility of SBOVectorBase:
+// Provide storage for SBOVectorStorage and Allocator
+// Provide empty base class optimization for Allocator if possible
+// 
+// TODO: this design should be inverted and simplified
+
+template<
+  typename DataType,
+  size_t BufferSize,
+  typename AllocatorType,
+  bool CompactData,
+  bool EmptyAllocator = is_compactable_v<AllocatorType>
+>
+struct SBOVectorBase;
+
 // Do Not Use this class directly, it is an incomplete helper class
 template <
   typename DataType,
   size_t BufferSize,
   typename Allocator,
-  bool Compact,
-  bool = is_compactable_v<Allocator>
+  bool Compact
 >
-struct SBOVectorBase
+struct SBOVectorBase<DataType, BufferSize, Allocator, Compact, true>
     : private Allocator,
       public SBOVectorStorage<DataType, BufferSize, Compact> {
 
@@ -224,7 +249,11 @@ struct SBOVectorBase
   }
 
   Allocator& access_allocator() { return *this; }
-  Allocator get_allocator() const { return *this; }
+  Allocator get_allocator() const {
+    // Known slice: Justified here as the pre-requisite for this code is that Allocator
+    // is an empty class
+    return *this;
+  }
 
   using StorageBase = SBOVectorStorage<DataType, BufferSize, Compact>;
   using StorageBase::capacity;
@@ -256,8 +285,7 @@ struct SBOVectorBase<DataType, BufferSize, Allocator, Compact, false>
     this->prep_change_to_inline();
   }
 
-  ~SBOVectorBase() { /*intentionally empty*/
-  }
+  ~SBOVectorBase() { /*intentionally empty*/ }
 
   Allocator& access_allocator() { return alloc_; }
   Allocator get_allocator() const { return alloc_; }
@@ -269,6 +297,10 @@ struct SBOVectorBase<DataType, BufferSize, Allocator, Compact, false>
 };
 
 // Do Not Use this class directly, it is an incomplete helper class
+// Normally this would be a private member class, but as this is a header only
+// library in the interest of readability details are being seperated so the
+// SBOVector interface is more quickly readable for the general use case of
+// looking at method signatures
 template <typename DataType, size_t BufferSize, typename Allocator, bool Compact>
 struct VectorImpl final
     : public SBOVectorBase<DataType, BufferSize, Allocator, Compact> {
@@ -306,8 +338,8 @@ struct VectorImpl final
 
  private:
   void insert_unninitialized_in_cap(size_t pos, size_t insert_count) noexcept {
-    static_assert(relax_except || std::is_nothrow_move_assignable_v<DataType>);
-    static_assert(relax_except || std::is_nothrow_move_constructible_v<DataType>);
+    static_assert(kRelaxedExceptions || std::is_nothrow_move_assignable_v<DataType>);
+    static_assert(kRelaxedExceptions || std::is_nothrow_move_constructible_v<DataType>);
 
     auto new_size = count() + insert_count;
     auto uninit_count = std::min(count() - pos, insert_count);
@@ -325,9 +357,9 @@ struct VectorImpl final
   }
 
   void insert_unninitialized_with_growth(size_t pos, size_t insert_count)
-      SBOVECTOR_THROW_ALLOC {
-    static_assert(relax_except || std::is_nothrow_move_constructible_v<DataType>);
-    static_assert(relax_except || std::is_nothrow_move_assignable_v<DataType>);
+      SBOVECTOR_NOEXCEPT_COND_ALLOC {
+    static_assert(kRelaxedExceptions || std::is_nothrow_move_constructible_v<DataType>);
+    static_assert(kRelaxedExceptions || std::is_nothrow_move_assignable_v<DataType>);
 
     const size_t new_size = count() + insert_count;
     const size_t new_cap = std::max(new_size, SuggestGrowth(count()));
@@ -335,8 +367,8 @@ struct VectorImpl final
     auto new_buffer = get_allocator().allocate(new_cap);
 
     if (!new_buffer) {
-      SBOVECTOR_ASSERT(!SBOVECTOR_THROW_BAD_ALLOC, SBOVEC_OOM);
-      SBOVECTOR_DO_BAD_ALLOC_THROW;
+      SBOVECTOR_ASSERT(!SBOVECTOR_SHOULD_THROW_BAD_ALLOC, SBOVEC_OOM);
+      SBOVECTOR_DO_BAD_ALLOC_THROW();
     }
 
     std::uninitialized_move_n(begin(), pos, new_buffer);
@@ -360,7 +392,7 @@ struct VectorImpl final
   void insert_unninitialized(
         size_t pos,
         size_t insert_count
-      ) SBOVECTOR_THROW_ALLOC {
+      ) SBOVECTOR_NOEXCEPT_COND_ALLOC {
     if (count() + insert_count <= capacity()) {
       insert_unninitialized_in_cap(pos, insert_count);
     } else {
@@ -372,7 +404,7 @@ struct VectorImpl final
   // assumes count() <= BufferSize
   // assumes external_ is in use
   void internalize() noexcept {
-    static_assert(!relax_except || std::is_nothrow_move_constructible_v<DataType>);
+    static_assert(kRelaxedExceptions || std::is_nothrow_move_constructible_v<DataType>);
 
     auto external_ptr_copy = this->external_data();
     auto external_capacity_copy = this->external_capacity();
@@ -397,7 +429,7 @@ struct VectorImpl final
   inline static void no_alloc_swap(
       VectorImpl<DataType, Size1, Allocator1, Compact1>& A,
       VectorImpl<DataType, Size2, Allocator2, Compact2>& B) noexcept {
-    static_assert(relax_except || std::is_nothrow_move_constructible_v<DataType>);
+    static_assert(kRelaxedExceptions || std::is_nothrow_move_constructible_v<DataType>);
 
     auto small_size = std::min(A.count(), B.count());
     auto size_diff = std::max(A.count(), B.count()) - small_size;
@@ -429,15 +461,15 @@ struct VectorImpl final
   inline static void one_alloc_swap(
         VectorImpl<DataType, Size1, Allocator1, Compact1>& allocating,
         VectorImpl<DataType, Size2, Allocator2, Compact2>& remaining
-      ) SBOVECTOR_THROW_ALLOC {
-    static_assert(relax_except || std::is_nothrow_move_constructible_v<DataType>);
+      ) SBOVECTOR_NOEXCEPT_COND_ALLOC {
+    static_assert(kRelaxedExceptions || std::is_nothrow_move_constructible_v<DataType>);
 
     auto new_data_size = remaining.count();
     auto new_data = allocating.access_allocator().allocate(new_data_size);
 
     if (!new_data) {
-      SBOVECTOR_ASSERT(!SBOVECTOR_THROW_BAD_ALLOC, SBOVEC_OOM);
-      SBOVECTOR_DO_BAD_ALLOC_THROW;
+      SBOVECTOR_ASSERT(!SBOVECTOR_SHOULD_THROW_BAD_ALLOC, SBOVEC_OOM);
+      SBOVECTOR_DO_BAD_ALLOC_THROW();
     }
     std::uninitialized_move_n(remaining.begin(), new_data_size, new_data);
     std::destroy(remaining.begin(), remaining.end());
@@ -464,8 +496,8 @@ struct VectorImpl final
   template <size_t OtherSize, typename OtherAllocator, bool OtherCompact>
   inline void swap_cross(
         VectorImpl<DataType, OtherSize, OtherAllocator, OtherCompact>& that
-      ) SBOVECTOR_THROW_ALLOC {
-    static_assert(relax_except || std::is_nothrow_move_assignable_v<DataType>);
+      ) SBOVECTOR_NOEXCEPT_COND_ALLOC {
+    static_assert(kRelaxedExceptions || std::is_nothrow_move_assignable_v<DataType>);
 
     const auto this_is_sufficient = (capacity() >= that.count());
     const auto that_is_sufficient = (that.capacity() >= count());
@@ -485,17 +517,17 @@ struct VectorImpl final
       auto new_this = this->access_allocator().allocate(that.count());
 
       if (!new_this) {
-        SBOVECTOR_ASSERT(!SBOVECTOR_THROW_BAD_ALLOC, SBOVEC_OOM);
-        SBOVECTOR_DO_BAD_ALLOC_THROW;
+        SBOVECTOR_ASSERT(!SBOVECTOR_SHOULD_THROW_BAD_ALLOC, SBOVEC_OOM);
+        SBOVECTOR_DO_BAD_ALLOC_THROW();
       }
 
       auto new_that_size = count();
       auto new_that = that.access_allocator().allocate(count());
 
       if (!new_that) {
-        SBOVECTOR_ASSERT(!SBOVECTOR_THROW_BAD_ALLOC, SBOVEC_OOM);
-        this->access_allocator().deallocate(new_that, new_that_size);
-        SBOVECTOR_DO_BAD_ALLOC_THROW;
+        SBOVECTOR_ASSERT(!SBOVECTOR_SHOULD_THROW_BAD_ALLOC, SBOVEC_OOM);
+        this->access_allocator().deallocate(new_this, new_this_size);
+        SBOVECTOR_DO_BAD_ALLOC_THROW();
       }
 
       std::uninitialized_move_n(that.begin(), that.count(), new_this);
@@ -517,7 +549,7 @@ struct VectorImpl final
 
   template <size_t OtherSize, bool OtherCompact>
   void swap(VectorImpl<DataType, OtherSize, Allocator, OtherCompact>& that)
-      SBOVECTOR_THROW_ALLOC {
+      SBOVECTOR_NOEXCEPT_COND_ALLOC {
     const auto this_is_inline = (count() <= BufferSize);
     const auto that_is_inline = (that.count() <= OtherSize);
     const auto this_will_be_inline = (that.count() <= BufferSize);
@@ -527,13 +559,13 @@ struct VectorImpl final
         (that.access_allocator() == this->access_allocator());
 
     if (!(this_is_inline || that_is_inline) && can_swap_external) {
-      auto this_count = this->count();
+      const auto this_count = this->count();
       this->set_count(that.count());
       that.set_count(this_count);
       auto this_data = data();
-      auto this_cap = capacity();
+      const auto this_cap = capacity();
       auto that_data = that.data();
-      auto that_cap = that.capacity();
+      const auto that_cap = that.capacity();
       this->set_external(that_data, that_cap);
       that.set_external(this_data, this_cap);
       if (this_will_be_inline) {
@@ -550,20 +582,20 @@ struct VectorImpl final
     }
   }
 
-  void reserve(size_t new_capacity) SBOVECTOR_THROW_ALLOC {
+  void reserve(size_t new_capacity) SBOVECTOR_NOEXCEPT_COND_ALLOC {
     // If calling reserve with count() <= BufferSize
     // reserve will leave this in an invalid state
     // care must be taken to resolve this
     // (increase count() + construct required elements)
     // immediately.
-    static_assert(relax_except || std::is_nothrow_move_assignable_v<DataType>);
+    static_assert(kRelaxedExceptions || std::is_nothrow_move_assignable_v<DataType>);
 
     new_capacity = std::max(new_capacity, SuggestGrowth(count()));
 
     auto new_data = this->access_allocator().allocate(new_capacity);
     if (!new_data) {
-      SBOVECTOR_ASSERT(!SBOVECTOR_THROW_BAD_ALLOC, SBOVEC_OOM);
-      SBOVECTOR_DO_BAD_ALLOC_THROW;
+      SBOVECTOR_ASSERT(!SBOVECTOR_SHOULD_THROW_BAD_ALLOC, SBOVEC_OOM);
+      SBOVECTOR_DO_BAD_ALLOC_THROW();
     }
 
     std::uninitialized_move_n(begin(), count(), new_data);
@@ -578,15 +610,15 @@ struct VectorImpl final
     this->set_external(new_data, new_capacity);
   }
 
-  void shrink_to_fit() SBOVECTOR_THROW_ALLOC {
+  void shrink_to_fit() SBOVECTOR_NOEXCEPT_COND_ALLOC {
     // requires count() > BufferSize
     // requires count() < capacity()
-    static_assert(relax_except || std::is_nothrow_move_assignable_v<DataType>);
+    static_assert(kRelaxedExceptions || std::is_nothrow_move_assignable_v<DataType>);
 
     auto new_data = get_allocator().allocate(count());
     if (!new_data) {
-      SBOVECTOR_ASSERT(!SBOVECTOR_THROW_BAD_ALLOC, SBOVEC_OOM);
-      SBOVECTOR_DO_BAD_ALLOC_THROW;
+      SBOVECTOR_ASSERT(!SBOVECTOR_SHOULD_THROW_BAD_ALLOC, SBOVEC_OOM);
+      SBOVECTOR_DO_BAD_ALLOC_THROW();
     }
 
     std::uninitialized_move_n(begin(), count(), new_data);
@@ -597,7 +629,7 @@ struct VectorImpl final
   }
 
   DataType* erase(const DataType* pos, size_t p_count) noexcept {
-    static_assert(relax_except || std::is_nothrow_move_assignable_v<DataType>);
+    static_assert(kRelaxedExceptions || std::is_nothrow_move_assignable_v<DataType>);
 
     const auto must_internalize =
         (count() > BufferSize) && ((count() - p_count) <= BufferSize);
@@ -611,15 +643,15 @@ struct VectorImpl final
   }
 
   template <typename... Args>
-  DataType& emplace_back(Args&&... args) SBOVECTOR_THROW_ALLOC {
-    static_assert(relax_except || std::is_nothrow_constructible_v<DataType, Args...>);
+  DataType& emplace_back(Args&&... args) SBOVECTOR_NOEXCEPT_COND_ALLOC {
+    static_assert(kRelaxedExceptions || std::is_nothrow_constructible_v<DataType, Args...>);
     if (count() == capacity()) {
       reserve(count() + 1);
     }
     this->set_count(count() + 1);
     // have to increment then offset by count() - 1
     // as reserve(count() + 1) will leave an invalid state
-    // if count() == BufferSize and begin() is thus an invalid call
+    // if count() == BufferSize: begin() would assume inline_ data incorrectly
     DataType* out = begin() + count() - 1;
     new (out) DataType(std::forward<Args>(args)...);
     return *out;
@@ -679,14 +711,14 @@ class SBOVector {
         size_t count,
         const DataType& value,
         const Allocator& alloc = Allocator()
-      ) SBOVECTOR_THROW_ALLOC : impl_(alloc) {
+      ) SBOVECTOR_NOEXCEPT_COND_ALLOC : impl_(alloc) {
     resize(count, value);
   }
 
   explicit SBOVector(
         size_t count,
         const Allocator& alloc = Allocator()
-      ) SBOVECTOR_THROW_ALLOC : SBOVector(alloc) {
+      ) SBOVECTOR_NOEXCEPT_COND_ALLOC : SBOVector(alloc) {
     resize(count);
   }
 
@@ -698,29 +730,29 @@ class SBOVector {
         InputIter p_begin,
         InputIter p_end,
         const Allocator& alloc = Allocator()
-      ) SBOVECTOR_THROW_ALLOC : impl_(alloc) {
+      ) SBOVECTOR_NOEXCEPT_COND_ALLOC : impl_(alloc) {
     insert(begin(), p_begin, p_end);
   }
 
   SBOVector(
         std::initializer_list<DataType> init_list,
         const Allocator& alloc = Allocator()
-      ) SBOVECTOR_THROW_ALLOC : SBOVector(init_list.begin(), init_list.end(), alloc) {}
+      ) SBOVECTOR_NOEXCEPT_COND_ALLOC : SBOVector(init_list.begin(), init_list.end(), alloc) {}
 
-  SBOVector(const SBOVector& copy) SBOVECTOR_THROW_ALLOC
+  SBOVector(const SBOVector& copy) SBOVECTOR_NOEXCEPT_COND_ALLOC
       : SBOVector(copy.begin(), copy.end(), copy.get_allocator()) {}
 
   template <size_t OtherSize>
-  SBOVector(const SBOVector<DataType, OtherSize, Allocator>& copy) SBOVECTOR_THROW_ALLOC
+  SBOVector(const SBOVector<DataType, OtherSize, Allocator>& copy) SBOVECTOR_NOEXCEPT_COND_ALLOC
       : SBOVector(copy.begin(), copy.end(), copy.get_allocator()) {}
 
   template <size_t OtherSize, typename AllocatorType>
   SBOVector(
         const SBOVector<DataType, OtherSize, AllocatorType>& copy,
         const Allocator& alloc = Allocator()
-      ) SBOVECTOR_THROW_ALLOC : SBOVector(copy.begin(), copy.end(), alloc) {}
+      ) SBOVECTOR_NOEXCEPT_COND_ALLOC : SBOVector(copy.begin(), copy.end(), alloc) {}
 
-  SBOVector(SBOVector&& move_from) SBOVECTOR_THROW_ALLOC
+  SBOVector(SBOVector&& move_from) SBOVECTOR_NOEXCEPT_COND_ALLOC
       : SBOVector(move_from.get_allocator()) {
     swap(move_from);
   }
@@ -735,13 +767,13 @@ class SBOVector {
   SBOVector(
         SBOVector<DataType, OtherSize, AllocatorType, OtherCompact>&& move_from,
         const Allocator& alloc = Allocator()
-      ) SBOVECTOR_THROW_ALLOC : SBOVector(alloc) {
+      ) SBOVECTOR_NOEXCEPT_COND_ALLOC : SBOVector(alloc) {
     swap(move_from);
   }
 
   ~SBOVector() { clear(); }
 
-  SBOVector& operator=(const SBOVector& other) SBOVECTOR_THROW_ALLOC {
+  SBOVector& operator=(const SBOVector& other) SBOVECTOR_NOEXCEPT_COND_ALLOC {
     assign(other.begin(), other.end());
     return *this;
   }
@@ -749,7 +781,7 @@ class SBOVector {
   template <size_t OtherSize, typename AllocatorType, bool OtherCompact>
   SBOVector& operator=(
         const SBOVector<DataType, OtherSize, AllocatorType, OtherCompact>& other
-      ) SBOVECTOR_THROW_ALLOC {
+      ) SBOVECTOR_NOEXCEPT_COND_ALLOC {
     assign(other.begin(), other.end());
     return *this;
   }
@@ -761,18 +793,18 @@ class SBOVector {
 
   template <size_t OtherSize, typename AllocatorType, bool OtherCompact>
   SBOVector& operator=(SBOVector<DataType, OtherSize, AllocatorType, OtherCompact>&& that)
-      SBOVECTOR_THROW_ALLOC {
+      SBOVECTOR_NOEXCEPT_COND_ALLOC {
     swap(that);
     return *this;
   }
 
   SBOVector& operator=(std::initializer_list<DataType> init)
-      SBOVECTOR_THROW_ALLOC {
+      SBOVECTOR_NOEXCEPT_COND_ALLOC {
     assign(init.begin(), init.end());
     return *this;
   }
 
-  void assign(size_t count, const DataType& value) SBOVECTOR_THROW_ALLOC {
+  void assign(size_t count, const DataType& value) SBOVECTOR_NOEXCEPT_COND_ALLOC {
     for (auto iter = begin(), end_ = begin() + std::min(size(), count);
          iter != end_; ++iter) {
       *iter = value;
@@ -784,9 +816,9 @@ class SBOVector {
     typename InputIt,
     typename = std::enable_if_t<details_::is_iterator_v<InputIt>>
   >
-  void assign(InputIt p_begin, InputIt p_end) SBOVECTOR_THROW_ALLOC {
+  void assign(InputIt p_begin, InputIt p_end) SBOVECTOR_NOEXCEPT_COND_ALLOC {
     auto new_size = static_cast<size_t>(std::distance(p_begin, p_end));
-    for (auto iter = begin(), end_ = end(); iter != end_ && p_begin != p_end;
+    for (auto iter = begin(), end_ = end(); (iter != end_) && (p_begin != p_end);
          ++iter, ++p_begin) {
       *iter = *p_begin;
     }
@@ -797,7 +829,7 @@ class SBOVector {
     }
   }
 
-  void assign(std::initializer_list<DataType> list) SBOVECTOR_THROW_ALLOC {
+  void assign(std::initializer_list<DataType> list) SBOVECTOR_NOEXCEPT_COND_ALLOC {
     assign(list.begin(), list.end());
   }
 
@@ -864,7 +896,7 @@ class SBOVector {
     return std::allocator_traits<Allocator>::max_size();
   }
 
-  void reserve_if_external(size_t requested_capacity) SBOVECTOR_THROW_ALLOC {
+  void reserve_if_external(size_t requested_capacity) SBOVECTOR_NOEXCEPT_COND_ALLOC {
     if (requested_capacity <= capacity() || size() <= BufferSize)
       return;
     impl_.reserve(requested_capacity);
@@ -872,23 +904,24 @@ class SBOVector {
 
   [[nodiscard]] size_t capacity() const noexcept { return impl_.capacity(); }
 
-  void shrink_to_fit_if_external() SBOVECTOR_THROW_ALLOC {
-    if (size() <= BufferSize || size() == capacity())
+  void shrink_to_fit_if_external() SBOVECTOR_NOEXCEPT_COND_ALLOC {
+    if ((size() <= BufferSize) || (size() == capacity()))
       return;
     impl_.shrink_to_fit();
   }
 
   void clear() noexcept { impl_.clear(); }
 
-  iterator insert(const_iterator pos, const DataType& v) SBOVECTOR_THROW_ALLOC {
+  iterator insert(const_iterator pos, const DataType& v) SBOVECTOR_NOEXCEPT_COND_ALLOC {
     return insert(pos, 1, v);
   }
 
-  iterator insert(const_iterator pos, DataType&& mv) SBOVECTOR_THROW_ALLOC {
+  iterator insert(const_iterator pos, DataType&& mv) SBOVECTOR_NOEXCEPT_COND_ALLOC {
+    static_assert(details_::kRelaxedExceptions || std::is_nothrow_move_constructible_v<DataType>);
     const auto i_pos = static_cast<size_t>(std::distance(cbegin(), pos));
     impl_.insert_unninitialized(i_pos, 1);
     auto out = begin() + i_pos;
-    new (out) DataType(std::move(mv));
+    new (out) DataType(std::forward<DataType>(mv));
     return out;
   }
 
@@ -896,7 +929,8 @@ class SBOVector {
         const_iterator pos,
         size_t count,
         const DataType& v
-      ) SBOVECTOR_THROW_ALLOC {
+      ) SBOVECTOR_NOEXCEPT_COND_ALLOC {
+    static_assert(details_::kRelaxedExceptions || std::is_nothrow_copy_constructible_v<DataType>);
     const auto i_pos = static_cast<size_t>(std::distance(cbegin(), pos));
     impl_.insert_unninitialized(i_pos, count);
     std::uninitialized_fill_n(begin() + i_pos, count, v);
@@ -911,7 +945,8 @@ class SBOVector {
         const_iterator pos,
         InputIt p_begin,
         InputIt p_end
-      ) SBOVECTOR_THROW_ALLOC {
+      ) SBOVECTOR_NOEXCEPT_COND_ALLOC {
+    static_assert(details_::kRelaxedExceptions || std::is_nothrow_copy_constructible_v<DataType>);
     const auto i_pos = static_cast<size_t>(std::distance(cbegin(), pos));
     impl_.insert_unninitialized(i_pos, static_cast<size_t>(std::distance(p_begin, p_end)));
     for (auto iter = begin() + i_pos; p_begin != p_end; ++p_begin, ++iter) {
@@ -923,12 +958,13 @@ class SBOVector {
   iterator insert(
         const_iterator pos,
         std::initializer_list<DataType> list
-      ) SBOVECTOR_THROW_ALLOC {
+      ) SBOVECTOR_NOEXCEPT_COND_ALLOC {
     return insert(pos, list.begin(), list.end());
   }
 
   template <typename... Args>
-  iterator emplace(const_iterator pos, Args&&... args) SBOVECTOR_THROW_ALLOC {
+  iterator emplace(const_iterator pos, Args&&... args) SBOVECTOR_NOEXCEPT_COND_ALLOC {
+    static_assert(details_::kRelaxedExceptions || std::is_nothrow_constructible_v<DataType, Args...>);
     auto i_pos = static_cast<size_t>(std::distance(cbegin(), pos));
     impl_.insert_unninitialized(i_pos, 1);
     auto out = begin() + i_pos;
@@ -942,23 +978,23 @@ class SBOVector {
     return impl_.erase(p_begin, static_cast<size_t>(std::distance(p_begin, p_end)));
   }
 
-  void push_back(const DataType& value) SBOVECTOR_THROW_ALLOC {
+  void push_back(const DataType& value) SBOVECTOR_NOEXCEPT_COND_ALLOC {
     emplace_back(value);
   }
 
-  void push_back(DataType&& value) SBOVECTOR_THROW_ALLOC {
+  void push_back(DataType&& value) SBOVECTOR_NOEXCEPT_COND_ALLOC {
     emplace_back(std::forward<DataType>(value));
   }
 
   template <typename... Args>
-  reference emplace_back(Args&&... args) SBOVECTOR_THROW_ALLOC {
+  reference emplace_back(Args&&... args) SBOVECTOR_NOEXCEPT_COND_ALLOC {
     return impl_.emplace_back(std::forward<Args>(args)...);
   }
 
   void pop_back() noexcept { erase(begin() + size() - 1); }
 
-  void resize(size_t count) SBOVECTOR_THROW_ALLOC {
-    static_assert(std::is_nothrow_default_constructible_v<DataType>);
+  void resize(size_t count) SBOVECTOR_NOEXCEPT_COND_ALLOC {
+    static_assert(details_::kRelaxedExceptions || std::is_nothrow_default_constructible_v<DataType>);
     auto old_size = size();
     if (old_size > count) {
       erase(end() - (old_size - count), end());
@@ -970,7 +1006,7 @@ class SBOVector {
     }
   }
 
-  void resize(size_t count, const DataType& v) SBOVECTOR_THROW_ALLOC {
+  void resize(size_t count, const DataType& v) SBOVECTOR_NOEXCEPT_COND_ALLOC {
     if (size() > count) {
       erase(end() - (size() - count), end());
     } else if (size() < count) {
@@ -984,13 +1020,13 @@ class SBOVector {
     bool OtherCompact
   >
   void swap(SBOVector<DataType, OtherSize, OtherAllocator, OtherCompact>& that)
-      SBOVECTOR_THROW_ALLOC {
+      SBOVECTOR_NOEXCEPT_COND_ALLOC {
     impl_.swap_cross(that.impl_);
   }
 
   template <size_t OtherSize, bool OtherCompact>
   void swap(SBOVector<DataType, OtherSize, Allocator, OtherCompact>& that)
-      SBOVECTOR_THROW_ALLOC {
+      SBOVECTOR_NOEXCEPT_COND_ALLOC {
     impl_.swap(that.impl_);
   }
 

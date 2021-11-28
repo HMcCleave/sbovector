@@ -16,6 +16,8 @@ constexpr size_t SBO_SIZE = 16;
 static_assert(SMALL_SIZE < SBO_SIZE);
 static_assert(SBO_SIZE < LARGE_SIZE);
 
+
+// NOTE: Requires Synchonization: see DataTypeOperationTrackingSBOVector::SharedDataMutex
 template <typename T>
 struct CountingAllocator {
   struct Totals {
@@ -90,9 +92,9 @@ class MoveOnly {
   MoveOnly& operator=(MoveOnly&&) noexcept { return *this; }
 };
 
+// NOTE: Requires Synchonization, see: DataTypeOperationTrackingSBOVector::SharedDataMutex
 struct OperationCounter {
   struct OperationTotals {
-    std::mutex mutex_{};
     int default_constructor_{0};
     int copy_constructor_{0};
     int move_constructor_{0};
@@ -102,7 +104,7 @@ struct OperationCounter {
     int unmoved_destructor_{0};
     int use_after_move_{0};
     int uninitialized_use_{0};
-    int uninitialized_desctruct_{0};
+    int uninitialized_destruct_{0};
     void reset() {
       default_constructor_ = 0;
       copy_constructor_ = 0;
@@ -113,7 +115,7 @@ struct OperationCounter {
       unmoved_destructor_ = 0;
       use_after_move_ = 0;
       uninitialized_use_ = 0;
-      uninitialized_desctruct_ = 0;
+      uninitialized_destruct_ = 0;
     }
     int moves() const { return move_constructor_ + move_assignment_; }
     int copies() const { return copy_constructor_ + copy_assignment_; }
@@ -185,7 +187,7 @@ struct OperationCounter {
   // Increment counter wrappers for errors (unified location for ease of debugging hook)
   inline void on_uninit_use() const { ++TOTALS.uninitialized_use_; }
   inline void on_use_after_move() const { ++TOTALS.use_after_move_; }
-  inline void on_uninit_destruct() const { ++TOTALS.uninitialized_desctruct_; }
+  inline void on_uninit_destruct() const { ++TOTALS.uninitialized_destruct_; }
 };
 
 template <typename Data, typename Alloc = std::allocator<Data>>
@@ -222,6 +224,9 @@ struct CopyableSBOVector_ : public SBOVector_<T> {
 };
 
 struct DataTypeOperationTrackingSBOVector : public ::testing::Test {
+  // Synchonization here is bad, unfortunately multi-threaded test enviornment
+  // was an afterthought
+  static std::mutex SharedDataMutex;
   using DataType = OperationCounter;
   using AllocatorType = CountingAllocator<DataType>;
   using ContainerType = SBOVector<DataType, SBO_SIZE, AllocatorType>;
@@ -231,7 +236,7 @@ struct DataTypeOperationTrackingSBOVector : public ::testing::Test {
   ContainerType regular_container_ { create_allocator() };
 
   void SetUp() {
-    OperationCounter::TOTALS.mutex_.lock();
+    SharedDataMutex.lock();
     totals_.allocs_ = totals_.frees_ = 0;
     OperationCounter::TOTALS.reset();
   }
@@ -242,8 +247,8 @@ struct DataTypeOperationTrackingSBOVector : public ::testing::Test {
     EXPECT_EQ(op_totals.constructs(), op_totals.destructs());
     EXPECT_EQ(op_totals.uninitialized_use_, 0);
     EXPECT_EQ(op_totals.use_after_move_, 0);
-    EXPECT_EQ(op_totals.uninitialized_desctruct_, 0);
-    OperationCounter::TOTALS.mutex_.unlock();
+    EXPECT_EQ(op_totals.uninitialized_destruct_, 0);
+    SharedDataMutex.unlock();
   }
 
   template<typename ContainerType_p>

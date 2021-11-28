@@ -14,6 +14,11 @@ target_include_directories(GeneralSettings INTERFACE
   ${PROJECT_BINARY_DIR}/include
 )
 
+if (MSVC) # Disable Microsoft Language extensions
+  target_compile_options(GeneralSettings INTERFACE /Za) 
+endif(MSVC)
+
+
 # Unit Testing Interfaces
 add_library(UnitTestSettings INTERFACE)
 target_link_libraries(UnitTestSettings INTERFACE CONAN_PKG::gtest GeneralSettings)

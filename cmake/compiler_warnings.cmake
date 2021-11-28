@@ -34,7 +34,6 @@ set(MSVC_WARNINGS
       /w14906 # string literal cast to 'LPWSTR'
       /w14928 # illegal copy-initialization; more than one user-defined
               # conversion has been implicitly applied
-      /WX
 )
 
 set(CLANG_WARNINGS

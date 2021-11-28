@@ -1,9 +1,34 @@
 SBOVector is a quick project to implement a std::vector-esc vector /w a small buffer optimization using c++17
 
+Some provision is provided to exceptions, but the implementation still very much lives under the enviornment I normall work in
+(all exceptions are immediately fatal: log and terminate), so there is no recovery steps taken thus no support for Data that
+can throw exceptions in construction/copy/move.
+
+Goal of the project was: Implement as much of SBOVector in 40 hours as possible:
+at 40 hours: Compact version of SBOVector was implemented, full test suite
+After that decided to add Fast Iteration Version (+2 hours)
+And a Code Cleanup/minor nit fix/one leak [double allocation swap leaked first allocation if the second allocation failed]/documentation pass (+2 hours)
+
+In the interest of simplicity std::vector's interface was duplicated with the change to reserve/shrink_to_fit being necissary
+ as those methods have unintuitive meanings in the context of an SBOVector.
+
+Suggested Design changes/future plans:
+  Remove reserve/shrink_to_fit completely:
+    these methods make sense in vector, they do not make sense in SBOVector and using them implies that the client
+    has made a mistake in selecting their storage container
+  Remove Initializer List constructor:
+    [see known defect with std::vector and uniform initialization]
+    vector<int> X = vector<int>(12, 42);
+    vector<int> Y{12, 42};
+    Uniform initialization practice tells us X and Y should be equivalent, they very much are not.
+  Restructure the inheritance tree to AllocatorCompating -> StorageLayout -> VectorBase
+    this would reduce the pitfalls that are present as VectorBase right now is required to clean up StorageLayout
+    due to Allocator not being visible to StorageLayout
+
 Future considerations:
 
-Add Exception Handling, currently all exceptions (except conditionally bad_alloc [define SBOVECTOR_THROW_BAD_ALLOC=true to enable]) invoke terminate (throw in no-throw method),
-there are static asserts (disabled via define SBOVECTOR_RELAX_EXCEPTION_REQUIREMENTS=true) that require DataType to be nothrow as required
+Add Exception Handling, currently all exceptions (except conditionally bad_alloc [define SBOVECTOR_SHOULD_THROW_BAD_ALLOC=true to enable]) invoke terminate (throw in no-throw method),
+there are static asserts (disabled via define SBOVECTOR_RELAX_EXCEPTION_REQUIREMENTS=true) that enforce nothrow requirements of DataType
 
 Add tests insuring requirements on limits to operations where possible, the std::vector specification provides some performance guarentees, most of those can be applied to SBOVector with the obvious exception of swap/move not being able to guarentee nomove/nocopy.
 
